@@ -56,27 +56,12 @@ func setupServer() []*GophorListener {
     /* First we setup all the flags and parse them... */
 
     /* Base server settings */
-    serverRoot         := flag.String("root-dir", "/var/gopher", "Change server root directory.")
-    serverHostname     := flag.String("hostname", "127.0.0.1", "Change server hostname (FQDN).")
-    serverPort         := flag.Int("port", 70, "Change server bind port.")
-    serverFwdPort      := flag.Int("fwd-port", 0, "Change port used in '$port' replacement strings (useful if you're port forwarding).")
+    serverRoot         := flag.String("root", "/var/gopher", "Change server root directory.")
     serverBindAddr     := flag.String("bind-addr", "127.0.0.1", "Change server socket bind address")
+    serverPort         := flag.Int("port", 70, "Change server bind port.")
 
-    /* User supplied caps.txt information */
-    serverDescription  := flag.String("description", "Gophor, a Gopher server in Go.", "Change server description in generated caps.txt.")
-    serverAdmin        := flag.String("admin-email", "", "Change admin email in generated caps.txt.")
-    serverGeoloc       := flag.String("geoloc", "", "Change server gelocation string in generated caps.txt.")
-
-    /* Content settings */
-    footerText         := flag.String("footer", " Gophor, a Gopher server in Go.", "Change gophermap footer text (Unix new-line separated lines).")
-    footerSeparator    := flag.Bool("no-footer-separator", false, "Disable footer line separator.")
-
-    pageWidth          := flag.Int("page-width", 80, "Change page width used when formatting output.")
-    disableCgi         := flag.Bool("disable-cgi", false, "Disable CGI and all executable support.")
-
-    /* Regex */
-    restrictedFiles    := flag.String("restrict-files", "", "New-line separated list of regex statements restricting accessible files.")
-    restrictedCommands := flag.String("restrict-commands", "", "New-line separated list of regex statements restricting accessible commands.")
+    serverFwdPort      := flag.Int("fwd-port", 0, "Change port used in '$port' replacement strings (useful if you're port forwarding).")
+    serverHostname     := flag.String("hostname", "127.0.0.1", "Change server hostname (FQDN).")
 
     /* Logging settings */
     systemLogPath      := flag.String("system-log", "", "Change server system log file (blank outputs to stderr).")
@@ -89,6 +74,23 @@ func setupServer() []*GophorListener {
     cacheSize          := flag.Int("cache-size", 50, "Change file cache size, measured in file count.")
     cacheFileSizeMax   := flag.Float64("cache-file-max", 0.5, "Change maximum file size to be cached (in megabytes).")
     cacheDisabled      := flag.Bool("disable-cache", false, "Disable file caching.")
+
+    /* Content settings */
+    pageWidth          := flag.Int("page-width", 80, "Change page width used when formatting output.")
+//    charSet            := flag.String("charset", "", "Change default output charset.")
+    disableCgi         := flag.Bool("disable-cgi", false, "Disable CGI and all executable support.")
+
+    footerText         := flag.String("footer", " Gophor, a Gopher server in Go.", "Change gophermap footer text (Unix new-line separated lines).")
+    footerSeparator    := flag.Bool("no-footer-separator", false, "Disable footer line separator.")
+
+    /* Regex */
+    restrictedFiles    := flag.String("restrict-files", "", "New-line separated list of regex statements restricting accessible files.")
+    restrictedCommands := flag.String("restrict-commands", "", "New-line separated list of regex statements restricting accessible commands.")
+
+    /* User supplied caps.txt information */
+    serverDescription  := flag.String("description", "Gophor, a Gopher server in Go.", "Change server description in generated caps.txt.")
+    serverAdmin        := flag.String("admin-email", "", "Change admin email in generated caps.txt.")
+    serverGeoloc       := flag.String("geoloc", "", "Change server gelocation string in generated caps.txt.")
 
     /* Version string */
     version            := flag.Bool("version", false, "Print version information.")
