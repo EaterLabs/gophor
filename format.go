@@ -257,6 +257,10 @@ func replaceStrings(str string, connHost *ConnHost) []byte {
 
     b := make([]byte, 0)
     for i := range split {
+        /* Re-add the tabs that we removed when splitting */
+        if (i < 3) {
+            split[i] += Tab
+        }
         b = append(b, []byte(split[i])...)
     }
     return b
