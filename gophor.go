@@ -28,10 +28,10 @@ func main() {
     /* Start accepting connections on any supplied listeners */
     for _, l := range listeners {
         go func() {
-            Config.SysLog.Info("", "Listening on: gopher://%s\n", l.Addr())
+            Config.SysLog.Info("", "Listening on: gopher://%s:%s\n", l.Host.Name(), l.Host.RealPort())
 
             for {
-                newConn, err := l.Accept()
+                connWrapper, err := l.Accept()
                 if err != nil {
                     Config.SysLog.Error("", "Error accepting connection: %s\n", err.Error())
                     continue
@@ -39,7 +39,7 @@ func main() {
 
                 /* Run this in it's own goroutine so we can go straight back to accepting */
                 go func() {
-                    worker := &Worker{ newConn }
+                    worker := &Worker{ connWrapper }
                     worker.Serve()
                 }()
             }

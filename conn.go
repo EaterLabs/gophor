@@ -2,7 +2,13 @@ package main
 
 import (
     "net"
+    "time"
     "strconv"
+)
+
+const (
+    SocketReadTimeout  = time.Second
+    SocketWriteTimeout = time.Second
 )
 
 type ConnHost struct {
@@ -70,54 +76,61 @@ func BeginGophorListen(bindAddr, hostname, port, fwdPort, rootDir string) (*Goph
     }
 }
 
-func (l *GophorListener) Accept() (*GophorConn, error) {
+func (l *GophorListener) Accept() (*GophorConnWrapper, error) {
     conn, err := l.Listener.Accept()
     if err != nil {
         return nil, err
     }
 
-    gophorConn := new(GophorConn)
-    gophorConn.Conn = conn
+    connWrapper := new(GophorConnWrapper)
+    connWrapper.Conn = &GophorConn{ conn }
 
     /* Copy over listener host */
-    gophorConn.Host = l.Host
-    gophorConn.Root = l.Root
+    connWrapper.Host = l.Host
+    connWrapper.Root = l.Root
 
     /* Should always be ok as listener is type TCP (see above) */
     addr, _ := conn.RemoteAddr().(*net.TCPAddr)
-    gophorConn.Client = &ConnClient{
+    connWrapper.Client = &ConnClient{
         addr.IP.String(),
         strconv.Itoa(addr.Port),
     }
 
-    return gophorConn, nil
-}
-
-func (l *GophorListener) Addr() net.Addr {
-    return l.Listener.Addr()
+    return connWrapper, nil
 }
 
 type GophorConn struct {
+    conn net.Conn
+}
+
+func (c *GophorConn) Read(b []byte) (int, error) {
+    /* Implements reader + updates deadline */
+    c.conn.SetReadDeadline(time.Now().Add(SocketReadTimeout))
+    return c.conn.Read(b)
+}
+
+func (c *GophorConn) Write(b []byte) (int, error) {
+    /* Implements writer + updates deadline */
+    c.conn.SetWriteDeadline(time.Now().Add(SocketWriteTimeout))
+    return c.conn.Write(b)
+}
+
+func (c *GophorConn) Close() error {
+    /* Implements closer */
+
+    return c.conn.Close()
+}
+
+type GophorConnWrapper struct {
     /* Simple net.Conn wrapper with virtual host and client info */
 
-    Conn    net.Conn
+    Conn    *GophorConn
     Host    *ConnHost
     Client  *ConnClient
     Root    string
 }
 
-func (c *GophorConn) Read(b []byte) (int, error) {
-    return c.Conn.Read(b)
-}
 
-func (c *GophorConn) Write(b []byte) (int, error) {
-    return c.Conn.Write(b)
-}
-
-func (c *GophorConn) Close() error {
-    return c.Conn.Close()
-}
-
-func (c *GophorConn) RootDir() string {
+func (c *GophorConnWrapper) RootDir() string {
     return c.Root
 }

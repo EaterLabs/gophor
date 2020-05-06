@@ -62,13 +62,13 @@ type Request struct {
     Parameters []string /* CGI-bin params will be 1 length slice, shell commands populate >=1 */ 
 }
 
-func NewSanitizedRequest(conn *GophorConn, requestStr string) *Request {
+func NewSanitizedRequest(connWrapper *GophorConnWrapper, requestStr string) *Request {
     /* Split dataStr into request path and parameter string (if pressent) */
     relPath, parameters := parseRequestString(requestStr)
-    relPath = sanitizeRelativePath(conn.RootDir(), relPath)
-    bufWriter := bufio.NewWriterSize(conn.Conn, SocketWriteBufSize)
-    requestPath := NewRequestPath(conn.RootDir(), relPath)
-    return NewRequest(conn.Host, conn.Client, bufWriter, requestPath, parameters)
+    relPath = sanitizeRelativePath(connWrapper.RootDir(), relPath)
+    bufWriter := bufio.NewWriterSize(connWrapper.Conn, SocketWriteBufSize)
+    requestPath := NewRequestPath(connWrapper.RootDir(), relPath)
+    return NewRequest(connWrapper.Host, connWrapper.Client, bufWriter, requestPath, parameters)
 }
 
 func NewRequest(host *ConnHost, client *ConnClient, writer *bufio.Writer, path *RequestPath, parameters []string) *Request {
