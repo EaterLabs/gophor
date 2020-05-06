@@ -77,7 +77,7 @@ func (fs *FileSystem) HandleRequest(request *Request) *GophorError {
 
                 if stat.Mode().Perm() & 0100 != 0 {
                     if Config.CgiEnabled {
-                        return executeFile(gophermapRequest)
+                        return gophermapRequest.SafeFlush(executeFile(gophermapRequest))
                     } else {
                         return &GophorError{ CgiDisabledErr, nil }
                     }
@@ -94,7 +94,7 @@ func (fs *FileSystem) HandleRequest(request *Request) *GophorError {
             /* If cgi-bin and CGI enabled, return executed contents. Else, fetch */
             if request.PathHasRelPrefix(CgiBinDirStr) {
                 if Config.CgiEnabled {
-                    return executeCgi(request)
+                    return request.SafeFlush(executeCgi(request))
                 } else {
                     return &GophorError{ CgiDisabledErr, nil }
                 }

@@ -21,7 +21,7 @@ type GeneratedFileContents struct {
 }
 
 func (fc *GeneratedFileContents) Render(request *Request) *GophorError {
-    return request.Write(fc.Contents)
+    return request.WriteFlush(fc.Contents)
 }
 
 func (fc *GeneratedFileContents) Load() *GophorError {
@@ -39,7 +39,7 @@ type RegularFileContents struct {
 }
 
 func (fc *RegularFileContents) Render(request *Request) *GophorError {
-    return request.Write(fc.Contents)
+    return request.WriteFlush(fc.Contents)
 }
 
 func (fc *RegularFileContents) Load() *GophorError {
@@ -67,8 +67,9 @@ func (gc *GophermapContents) Render(request *Request) *GophorError {
             Config.SysLog.Error("", "Error executing gophermap contents: %s\n", gophorErr.Error())
         }
     }
+
     /* End on footer text (including lastline) */
-    return request.Write(Config.FooterText)
+    return request.WriteFlush(Config.FooterText)
 }
 
 func (gc *GophermapContents) Load() *GophorError {

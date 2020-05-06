@@ -164,10 +164,8 @@ func listDir(request *Request, hidden map[string]bool) *GophorError {
         }
     }
 
-    /* Append the footer (including lastline) */
-    dirContents = append(dirContents, Config.FooterText...)
-
-    return request.Write(dirContents)
+    /* Append the footer (including lastline), write and flush! */
+    return request.WriteFlush(append(dirContents, Config.FooterText...))
 }
 
 /* Took a leaf out of go-gopher's book here. */

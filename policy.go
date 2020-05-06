@@ -55,6 +55,8 @@ func generateCapsTxt(description, admin, geoloc string) []byte {
     text += DOSLineEnd
     text += "# This is an automatically generated"+DOSLineEnd
     text += "# server policy file: caps.txt"+DOSLineEnd
+    text += "#"+DOSLineEnd
+    text += "# Eat the rich ~GophorDev"+DOSLineEnd
     text += DOSLineEnd
     text += "CapsVersion=1"+DOSLineEnd
     text += "ExpireCapsAfter=1800"+DOSLineEnd
@@ -77,7 +79,12 @@ func generateCapsTxt(description, admin, geoloc string) []byte {
 }
 
 func generateRobotsTxt() []byte {
-    text := "Usage-agent: *"+DOSLineEnd
+    text := "# This is an automatically generated"+DOSLineEnd
+    text += "# server policy file: robots.txt"+DOSLineEnd
+    text += "#"+DOSLineEnd
+    text += "# Eat the rich ~GophorDev"+DOSLineEnd
+    text += DOSLineEnd
+    text += "Usage-agent: *"+DOSLineEnd
     text += "Disallow: *"+DOSLineEnd
     text += DOSLineEnd
     text += "Crawl-delay: 99999"+DOSLineEnd

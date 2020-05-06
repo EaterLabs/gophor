@@ -9,29 +9,30 @@ type ErrorCode int
 type ErrorResponseCode int
 const (
     /* Filesystem */
-    PathEnumerationErr   ErrorCode = iota
-    IllegalPathErr       ErrorCode = iota
-    FileStatErr          ErrorCode = iota
-    FileOpenErr          ErrorCode = iota
-    FileReadErr          ErrorCode = iota
-    FileTypeErr          ErrorCode = iota
-    DirListErr           ErrorCode = iota
+    PathEnumerationErr    ErrorCode = iota
+    IllegalPathErr        ErrorCode = iota
+    FileStatErr           ErrorCode = iota
+    FileOpenErr           ErrorCode = iota
+    FileReadErr           ErrorCode = iota
+    FileTypeErr           ErrorCode = iota
+    DirListErr            ErrorCode = iota
 
     /* Sockets */
-    RequestWriteErr      ErrorCode = iota
-    RequestWriteCountErr ErrorCode = iota
+    BufferedWriteErr      ErrorCode = iota
+    BufferedWriteReadErr  ErrorCode = iota
+    BufferedWriteFlushErr ErrorCode = iota
     
     /* Parsing */
-    InvalidRequestErr    ErrorCode = iota
-    EmptyItemTypeErr     ErrorCode = iota
-    InvalidGophermapErr  ErrorCode = iota
+    InvalidRequestErr     ErrorCode = iota
+    EmptyItemTypeErr      ErrorCode = iota
+    InvalidGophermapErr   ErrorCode = iota
 
     /* Executing */
-    BufferReadErr        ErrorCode = iota
-    CommandStartErr      ErrorCode = iota
-    CommandExitCodeErr   ErrorCode = iota
-    CgiDisabledErr       ErrorCode = iota
-    RestrictedCommandErr ErrorCode = iota
+    BufferReadErr         ErrorCode = iota
+    CommandStartErr       ErrorCode = iota
+    CommandExitCodeErr    ErrorCode = iota
+    CgiDisabledErr        ErrorCode = iota
+    RestrictedCommandErr  ErrorCode = iota
 
     /* Error Response Codes */
     ErrorResponse200 ErrorResponseCode = iota
@@ -72,10 +73,12 @@ func (e *GophorError) Error() string {
         case DirListErr:
             str = "directory read fail"
 
-        case RequestWriteErr:
-            str = "request write fail"
-        case RequestWriteCountErr:
-            str = "request write count mismatch"
+        case BufferedWriteErr:
+            str = "buffered write error"
+        case BufferedWriteReadErr:
+            str = "buffered write readFrom error"
+        case BufferedWriteFlushErr:
+            str = "buffered write flush error"
 
         case InvalidRequestErr:
             str = "invalid request data"
@@ -126,9 +129,11 @@ func gophorErrorToResponseCode(code ErrorCode) ErrorResponseCode {
             return ErrorResponse404
 
         /* These are errors _while_ sending, no point trying to send error  */
-        case RequestWriteErr:
+        case BufferedWriteErr:
             return NoResponse
-        case RequestWriteCountErr:
+        case BufferedWriteReadErr:
+            return NoResponse
+        case BufferedWriteFlushErr:
             return NoResponse
 
         case InvalidRequestErr:

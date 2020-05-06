@@ -256,14 +256,17 @@ func replaceStrings(str string, connHost *ConnHost) []byte {
     split[2] = strings.Replace(split[2], ReplaceStrHostname, connHost.Name(), -1)
     split[3] = strings.Replace(split[3], ReplaceStrPort, connHost.Port(), -1)
 
+    /* Return slice */
     b := make([]byte, 0)
-    for i := range split {
-        /* Re-add the tabs that we removed when splitting */
-        if (i < 3) {
-            split[i] += Tab
-        }
+
+    /* Recombine the slices and add the removed tabs */
+    splitLen := len(split)
+    for i := 0; i < splitLen-1; i += 1 {
+        split[i] += Tab
         b = append(b, []byte(split[i])...)
     }
+    b = append(b, []byte(split[splitLen-1])...)
+
     return b
 }
 

@@ -4,6 +4,11 @@ import (
     "io"
     "path"
     "strings"
+    "bufio"
+)
+
+const (
+    SocketWriteBufSize = 4096
 )
 
 type RequestPath struct {
@@ -52,7 +57,7 @@ type Request struct {
     Client     *ConnClient
 
     /* MUST be set */
-    Writer     io.Writer
+    Writer     *bufio.Writer
     Path       *RequestPath
     Parameters []string /* CGI-bin params will be 1 length slice, shell commands populate >=1 */ 
 }
@@ -61,10 +66,12 @@ func NewSanitizedRequest(conn *GophorConn, requestStr string) *Request {
     /* Split dataStr into request path and parameter string (if pressent) */
     relPath, parameters := parseRequestString(requestStr)
     relPath = sanitizeRelativePath(conn.RootDir(), relPath)
-    return NewRequest(conn.Host, conn.Client, conn.Conn, NewRequestPath(conn.RootDir(), relPath), parameters)
+    bufWriter := bufio.NewWriterSize(conn.Conn, SocketWriteBufSize)
+    requestPath := NewRequestPath(conn.RootDir(), relPath)
+    return NewRequest(conn.Host, conn.Client, bufWriter, requestPath, parameters)
 }
 
-func NewRequest(host *ConnHost, client *ConnClient, writer io.Writer, path *RequestPath, parameters []string) *Request {
+func NewRequest(host *ConnHost, client *ConnClient, writer *bufio.Writer, path *RequestPath, parameters []string) *Request {
     return &Request{
         host,
         client,
@@ -84,25 +91,44 @@ func (r *Request) AccessLogError(format string, args ...interface{}) {
     Config.AccLog.Error("("+r.Client.AddrStr()+") ", format, args...)
 }
 
-func (r *Request) WriteRaw(reader io.Reader) *GophorError {
-    /* You HAVE to be sure that r.Conn is NOT nil before calling this */
-    _, err := io.Copy(r.Writer, reader)
+func (r *Request) Write(data []byte) *GophorError {
+    _, err := r.Writer.Write(data)
     if err != nil {
-        return &GophorError{ RequestWriteErr, err }
+        return &GophorError{ BufferedWriteErr, err }
+    }
+    return nil
+}
+
+func (r *Request) WriteFlush(data []byte) *GophorError {
+    _, err := r.Writer.Write(data)
+    if err != nil {
+        return &GophorError{ BufferedWriteErr, err }
+    }
+    return r.Flush()
+}
+
+func (r *Request) Flush() *GophorError {
+    err := r.Writer.Flush()
+    if err != nil {
+        return &GophorError{ BufferedWriteFlushErr, err }
+    }
+    return nil
+}
+
+func (r *Request) SafeFlush(gophorErr *GophorError) *GophorError {
+    if gophorErr != nil {
+        return gophorErr
     } else {
-        return nil
+        return r.Flush()
     }
 }
 
-func (r *Request) Write(data []byte) *GophorError {
-    count, err := r.Writer.Write(data)
+func (r *Request) WriteRaw(reader io.Reader) *GophorError {
+    _, err := r.Writer.ReadFrom(reader)
     if err != nil {
-        return &GophorError{ RequestWriteErr, err }
-    } else if count != len(data) {
-        return &GophorError{ RequestWriteCountErr, nil }
-    } else {
-        return nil
+        return &GophorError{ BufferedWriteReadErr, err }
     }
+    return r.Flush()
 }
 
 func (r *Request) RootDir() string {
