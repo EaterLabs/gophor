@@ -78,34 +78,36 @@ permissions then there are a few alternatives:
 
 ```
 gophor [args]
-       -root-dir            Change server root directory.
-       -port                Change server bind port.
-       -fwd-port            Change port used in $port replacement strings
-                            (e.g. when port forwarding).
-       -hostname            Change server hostname (FQDN, used to craft dir
-                            lists).
+       -root                Change server root directory.
        -bind-addr           Change server bind-address (used in creating
                             socket).
-       -env                 New-line separated list of environment variables
-                            to use when executing cgi-bin, gophermaps, shell
-                            commands.
+       -port                Change server bind port.
+
+       -fwd-port            Change port used in $port replacement strings
+                            (e.g. when port forwarding).
+       -hostname            Change server hostname (FQDN).
 
        -system-log          Path to gophor system log file.
        -access-log          Path to gophor access log file.
        -log-output          Change log output type (disable|stderr|file)
        -log-opts            Comma-separated list of lop opts (timestamp|ip)
 
-       -cache-check         Change file-cache freshness check frequency.
+       -file-monitor-freq   Change file-cache freshness check frequency.
        -cache-size          Change max no. files in file-cache.
        -cache-file-max      Change maximum allowed size of a cached file.
        -disable-cache       Disable file caching.
 
        -page-width          Change page width used when formatting output.
+
        -footer              Change gophermap footer text (Unix new-line
                             separated lines).
        -no-footer-separator Disable footer text line separator.
+
        -restrict-files      New-line separated list of regex statements
-                            restricting files from showing in directory listing.
+                            (checked against absolute paths) restricting
+                            file access.
+       -restricted-commands New-line separated list of regex statements
+                            restricting command access in gophermaps.
 
        -description         Change server description in generated caps.txt.
        -admin-email         Change admin email in generated caps.txt.
@@ -293,8 +295,6 @@ Null port: `0`
 - Fix file cache only updating if main gophermap changes (but not sub files)
 
 - Personal user gopherspaces
-
-- Finish checking we abide by CGI 1.1 standard
 
 - Remapping of file paths
 
