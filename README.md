@@ -98,6 +98,7 @@ gophor [args]
        -disable-cache       Disable file caching.
 
        -page-width          Change page width used when formatting output.
+       -disable-cgi         Disable CGI and all executable support.
 
        -footer              Change gophermap footer text (Unix new-line
                             separated lines).
@@ -276,9 +277,9 @@ Possible Gophor errors:
 ## Terminating full stop
 
 Gophor will send a terminating full-stop for menus, but not for served
-files.
+or executed files.
 
-## Placeholder text
+## Placeholder (null) text
 
 All of the following are used as placeholder text in responses...
 
