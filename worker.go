@@ -12,13 +12,13 @@ const (
 )
 
 type Worker struct {
-    ConnWrapper *GophorConnWrapper
+    Conn *GophorConn
 }
 
 func (worker *Worker) Serve() {
     defer func() {
         /* Close-up shop */
-        worker.ConnWrapper.Conn.Close()
+        worker.Conn.Conn.Close()
     }()
 
     var count int
@@ -32,7 +32,7 @@ func (worker *Worker) Serve() {
     endReached := false
     for {
         /* Buffered read from conn */
-        count, err = worker.ConnWrapper.Conn.Read(buf)
+        count, err = worker.Conn.Read(buf)
 
         /* Copy buffer into received string, stop at first tap or CrLf */
         for i := 0; i < count; i += 1 {
@@ -56,7 +56,7 @@ func (worker *Worker) Serve() {
                 break
             }
 
-            Config.SysLog.Error("", "Error reading from socket on port %s: %s\n", worker.ConnWrapper.Host.Port(), err.Error())
+            Config.SysLog.Error("", "Error reading from socket on port %s: %s\n", worker.Conn.Host.Port(), err.Error())
             return
         } else if endReached || count < SocketReadBufSize {
             /* Reached the end of what we want, break */
@@ -79,15 +79,15 @@ func (worker *Worker) Serve() {
     switch len(received) {
         case lenBefore-4:
             /* Send an HTML redirect to supplied URL */
-            Config.AccLog.Info("("+worker.ConnWrapper.Client.Ip()+") ", "Redirecting to %s\n", received)
-            worker.ConnWrapper.Conn.Write(generateHtmlRedirect(received))
+            Config.AccLog.Info("("+worker.Conn.Client.Ip()+") ", "Redirecting to %s\n", received)
+            worker.Conn.Write(generateHtmlRedirect(received))
             return
         default:
             /* Do nothing */
     }
 
     /* Create new request from dataStr */
-    request := NewSanitizedRequest(worker.ConnWrapper, received)
+    request := NewSanitizedRequest(worker.Conn, received)
 
     /* Handle request */
     gophorErr := Config.FileSystem.HandleRequest(request)
