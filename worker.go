@@ -101,7 +101,7 @@ func (worker *Worker) Serve() {
         /* If we got response bytes to send? SEND 'EM! */
         if response != nil {
             /* No gods. No masters. We don't care about error checking here */
-            request.Write(response)
+            request.WriteFlush(response)
         }
 
         request.AccessLogError("Failed to serve: %s\n", request.AbsPath())
