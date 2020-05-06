@@ -177,6 +177,10 @@ Type | Treat as | Meaning
 
 # Compliance
 
+We aim to comply more with GopherII, given how much newer than Gopher+ this
+standard is and that the extension, GopherIIbis is seemingly the work of
+Gopher+ continued.
+
 ## Item types
 
 Supported item types are listed above.
@@ -312,8 +316,8 @@ Null port: `0`
 Gopher-II (The Next Generation Gopher WWIS):
 https://tools.ietf.org/html/draft-matavka-gopher-ii-00
 
-Gophernicus supported item types:
-https://github.com/gophernicus/gophernicus/blob/master/README.gophermap
+Gophernicus source (a great gopher daemon in C):
+https://github.com/gophernicus/gophernicus
 
 All of the below can be viewed from your standard web browser using
 floodgap's Gopher proxy:
