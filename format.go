@@ -160,7 +160,8 @@ var FileExtMap = map[string]ItemType{
     ".webm":         TypeVideo,
 }
 
-func buildError(selector string) []byte {
+/* Build error line */
+func buildErrorLine(selector string) []byte {
     ret := string(TypeError)
     ret += selector + DOSLineEnd
     ret += LastLine
