@@ -111,7 +111,7 @@ func unixLineEndSplitter(data []byte, atEOF bool) (advance int, token []byte, er
 }
 
 /* List the files in a directory, hiding those requested */
-func listDir(responder *Responder, hidden map[string]bool) *GophorError {
+func listDir(responder *Responder, hidden map[string]bool, includeTitleFooter bool) *GophorError {
     /* Open directory file descriptor */
     fd, err := os.Open(responder.Request.AbsPath())
     if err != nil {
@@ -133,11 +133,13 @@ func listDir(responder *Responder, hidden map[string]bool) *GophorError {
     dirContents := make([]byte, 0)
 
     /* First add a title + a space */
-    dirContents = append(dirContents, buildLine(TypeInfo, "[ "+responder.Host.Name()+responder.Request.SelectorPath()+" ]", "TITLE", NullHost, NullPort)...)
-    dirContents = append(dirContents, buildInfoLine("")...)
+    if includeTitleFooter {
+        dirContents = append(dirContents, buildLine(TypeInfo, "[ "+responder.Host.Name()+responder.Request.SelectorPath()+" ]", "TITLE", NullHost, NullPort)...)
+        dirContents = append(dirContents, buildInfoLine("")...)
 
-    /* Add a 'back' entry. GoLang Readdir() seems to miss this */
-    dirContents = append(dirContents, buildLine(TypeDirectory, "..", responder.Request.PathJoinSelector(".."), responder.Host.Name(), responder.Host.Port())...)
+        /* Add a 'back' entry. GoLang Readdir() seems to miss this */
+        dirContents = append(dirContents, buildLine(TypeDirectory, "..", responder.Request.PathJoinSelector(".."), responder.Host.Name(), responder.Host.Port())...)
+    }
 
     /* Walk through files :D */
     var reqPath *RequestPath
@@ -145,7 +147,7 @@ func listDir(responder *Responder, hidden map[string]bool) *GophorError {
         reqPath = NewRequestPath(responder.Request.RootDir(), file.Name())
 
         /* If hidden file, or restricted file, continue! */
-        if isHiddenFile(hidden, file.Name()) || isRestrictedFile(reqPath.Relative()) {
+        if isHiddenFile(hidden, reqPath.Relative()) || isRestrictedFile(reqPath.Relative()) {
             continue
         }
 
@@ -169,8 +171,12 @@ func listDir(responder *Responder, hidden map[string]bool) *GophorError {
         }
     }
 
+    if includeTitleFooter {
+        dirContents = append(dirContents, Config.FooterText...)
+    }
+
     /* Append the footer (including lastline), write and flush! */
-    return responder.WriteFlush(append(dirContents, Config.FooterText...))
+    return responder.WriteFlush(dirContents)
 }
 
 func isHiddenFile(hiddenMap map[string]bool, fileName string) bool {

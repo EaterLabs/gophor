@@ -43,7 +43,7 @@ func (fs *FileSystem) RemapRequestPath(requestPath *RequestPath) {
 }
 
 func (fs *FileSystem)ReverseRemapRequestPath(requestPath *RequestPath) {
-    virtualPath, ok := fs.Remap[requestPath.Relative()]
+    virtualPath, ok := fs.ReverseRemap[requestPath.Relative()]
     if ok {
         requestPath.RemapVirtual(virtualPath)
     }
@@ -107,7 +107,7 @@ func (fs *FileSystem) HandleRequest(responder *Responder) *GophorError {
                 }
             } else {
                 /* No gophermap, serve directory listing */
-                return listDir(responder, map[string]bool{})
+                return listDir(responder, map[string]bool{}, true)
             }
 
         /* Regular file */

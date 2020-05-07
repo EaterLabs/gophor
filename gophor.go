@@ -149,11 +149,11 @@ func setupServer() []*GophorListener {
         Config.CgiEnv = setupInitialCgiEnviron(*safeExecPath)
 
         /* Set executable watchdog */
-        Config.SysLog.Info("", "Maximum executable time: %s\n", *maxExecRunTime)
+        Config.SysLog.Info("", "Max executable time: %s\n", *maxExecRunTime)
         Config.MaxExecRunTime = *maxExecRunTime
 
         /* Specific to CGI buffer */
-        Config.SysLog.Info("", "Maximum CGI HTTP header read-ahead: %d bytes\n", *skipPrefixBuf)
+        Config.SysLog.Info("", "Max CGI HTTP header read-ahead: %d bytes\n", *skipPrefixBuf)
         Config.SkipPrefixBufSize = *skipPrefixBuf
     }
 

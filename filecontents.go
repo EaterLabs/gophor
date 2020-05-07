@@ -114,6 +114,7 @@ func (g *GophermapDirectorySection) Render(responder *Responder) *GophorError {
             g.Request,
         },
         g.Hidden,
+        false,
     )
 }
 
@@ -195,14 +196,12 @@ func readGophermap(request *Request) ([]GophermapSection, *GophorError) {
     /* Create return slice */
     sections := make([]GophermapSection, 0)
 
-    /* _Create_ hidden files map now in case dir listing requested */
+    /* Create hidden files map now in case dir listing requested */
     hidden := make(map[string]bool)
+    hidden[request.RelPath()] = true
 
     /* Keep track of whether we've already come across a title line (only 1 allowed!) */
     titleAlready := false
-
-    /* Reference directory listing now in case requested */
-    var dirListing *GophermapDirectorySection
 
     /* Perform buffered scan with our supplied splitter and iterators */
     gophorErr := bufferedScan(request.AbsPath(),
@@ -229,7 +228,7 @@ func readGophermap(request *Request) ([]GophermapSection, *GophorError) {
 
                 case TypeHiddenFile:
                     /* Add to hidden files map */
-                    hidden[line[1:]] = true
+                    hidden[request.PathJoinRel(line[1:])] = true
 
                 case TypeSubGophermap:
                     /* Parse new requestPath and parameters (this automatically sanitizes requestPath) */
@@ -287,7 +286,7 @@ func readGophermap(request *Request) ([]GophermapSection, *GophorError) {
                 case TypeEndBeginList:
                     /* Create GophermapDirListing object then break out at end of loop */
                     dirRequest := &Request{ NewRequestPath(request.RootDir(), request.PathTrimRelSuffix(GophermapFileStr)), request.Parameters }
-                    dirListing = &GophermapDirectorySection{ dirRequest, hidden }
+                    sections = append(sections, &GophermapDirectorySection{ dirRequest, hidden })
                     return false
 
                 default:
