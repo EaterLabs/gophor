@@ -50,13 +50,18 @@ func cachePolicyFiles(rootDir, description, admin, geoloc string) {
     }
 }
 
+func generatePolicyHeader(filename string) string {
+    text := "# This is an automatically generated"+DOSLineEnd
+    text += "# server policy file: "+filename+DOSLineEnd
+    text += "#"+DOSLineEnd
+    text += "# Eat the rich ~GophorDev"+DOSLineEnd
+    return text
+}
+
 func generateCapsTxt(description, admin, geoloc string) []byte {
     text := "CAPS"+DOSLineEnd
     text += DOSLineEnd
-    text += "# This is an automatically generated"+DOSLineEnd
-    text += "# server policy file: caps.txt"+DOSLineEnd
-    text += "#"+DOSLineEnd
-    text += "# Eat the rich ~GophorDev"+DOSLineEnd
+    text += generatePolicyHeader(CapsTxtStr)
     text += DOSLineEnd
     text += "CapsVersion=1"+DOSLineEnd
     text += "ExpireCapsAfter=1800"+DOSLineEnd
@@ -79,10 +84,7 @@ func generateCapsTxt(description, admin, geoloc string) []byte {
 }
 
 func generateRobotsTxt() []byte {
-    text := "# This is an automatically generated"+DOSLineEnd
-    text += "# server policy file: robots.txt"+DOSLineEnd
-    text += "#"+DOSLineEnd
-    text += "# Eat the rich ~GophorDev"+DOSLineEnd
+    text := generatePolicyHeader(RobotsTxtStr)
     text += DOSLineEnd
     text += "Usage-agent: *"+DOSLineEnd
     text += "Disallow: *"+DOSLineEnd
