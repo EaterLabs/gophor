@@ -239,8 +239,8 @@ func readGophermap(request *Request) ([]GophermapSection, *GophorError) {
                     if !subRequest.PathHasAbsPrefix("/") {
                         if Config.CgiEnabled {
                             /* Special case here where command must be in path, return GophermapExecCommand */
-                            Config.SysLog.Info("", "Inserting command output")
                             sections = append(sections, &GophermapExecCommandSection{ subRequest })
+                            break
                         } else {
                             break
                         }
@@ -263,20 +263,16 @@ func readGophermap(request *Request) ([]GophermapSection, *GophorError) {
                     if subRequest.PathHasAbsSuffix(GophermapFileStr) {
                         /* If executable, store as GophermapExecutable, else readGophermap() */
                         if Config.CgiEnabled && stat.Mode().Perm() & 0100 != 0 {
-                            Config.SysLog.Info("", "Inserting executable subgophermap")
                             sections = append(sections, &GophermapExecFileSection { subRequest })
                         } else {
                             /* Treat as any other gophermap! */
-                            Config.SysLog.Info("", "Inserting regular subgophermap")
                             sections = append(sections, &GophermapSubmapSection{ subRequest })
                         }
                     } else {
                         /* If stored in cgi-bin store as GophermapExecutable, else read into GophermapText */
                         if Config.CgiEnabled && subRequest.PathHasRelPrefix(CgiBinDirStr) {
-                            Config.SysLog.Info("", "Inserting CGI script output")
                             sections = append(sections, &GophermapExecCgiSection{ subRequest })
                         } else {
-                            Config.SysLog.Info("", "Inserting regular file")
                             sections = append(sections, &GophermapFileSection{ subRequest })
                         }
                     }
