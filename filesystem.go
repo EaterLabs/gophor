@@ -24,19 +24,39 @@ type FileSystem struct {
     CacheMap     *FixedMap    /* Fixed size cache map */
     CacheMutex   sync.RWMutex /* RWMutex for safe cachemap access */
     CacheFileMax int64        /* Cache file size max */
+    Remap        map[string]string
+    ReverseRemap map[string]string
 }
 
 func (fs *FileSystem) Init(size int, fileSizeMax float64) {
     fs.CacheMap     = NewFixedMap(size)
     fs.CacheMutex   = sync.RWMutex{}
     fs.CacheFileMax = int64(BytesInMegaByte * fileSizeMax)
+    /* {,Reverse}Remap map is setup in `gophor.go`, no need to here */
+}
+
+func (fs *FileSystem) RemapRequestPath(requestPath *RequestPath) {
+    realPath, ok := fs.Remap[requestPath.Relative()]
+    if ok {
+        requestPath.RemapActual(realPath)
+    }
+}
+
+func (fs *FileSystem)ReverseRemapRequestPath(requestPath *RequestPath) {
+    virtualPath, ok := fs.Remap[requestPath.Relative()]
+    if ok {
+        requestPath.RemapVirtual(virtualPath)
+    }
 }
 
 func (fs *FileSystem) HandleRequest(responder *Responder) *GophorError {
     /* Check if restricted file */
-    if isRestrictedFile(responder.Request.AbsPath()) {
+    if isRestrictedFile(responder.Request.RelPath()) {
         return &GophorError{ IllegalPathErr, nil }
     }
+
+    /* Remap RequestPath if necessary */
+    fs.RemapRequestPath(responder.Request.Path)
 
     /* Get filesystem stat, check it exists! */
     stat, err := os.Stat(responder.Request.AbsPath())

@@ -12,13 +12,23 @@ type RequestPath struct {
      * and filesystem reading
      */
 
-    Root string
-    Rel  string
-    Abs  string
+    Root   string
+    Rel    string
+    Abs    string
+    Select string
 }
 
 func NewRequestPath(rootDir, relPath string) *RequestPath {
-    return &RequestPath{ rootDir, relPath, path.Join(rootDir, strings.TrimSuffix(relPath, "/")) }
+    return &RequestPath{ rootDir, relPath, path.Join(rootDir, strings.TrimSuffix(relPath, "/")), relPath }
+}
+
+func (rp *RequestPath) RemapActual(newRel string) {
+    rp.Rel = newRel
+    rp.Abs = path.Join(rp.Root, strings.TrimSuffix(newRel, "/"))
+}
+
+func (rp *RequestPath) RemapVirtual(newSel string) {
+    rp.Select = newSel
 }
 
 func (rp *RequestPath) RootDir() string {
@@ -34,10 +44,10 @@ func (rp *RequestPath) Absolute() string {
 }
 
 func (rp *RequestPath) Selector() string {
-    if rp.Rel == "." {
+    if rp.Select == "." {
         return "/"
     } else {
-        return "/"+rp.Rel
+        return "/"+rp.Select
     }
 }
 

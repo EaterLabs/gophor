@@ -2,6 +2,7 @@ package main
 
 import (
     "os"
+    "log"
     "strconv"
     "syscall"
     "os/signal"
@@ -69,8 +70,11 @@ func setupServer() []*GophorListener {
     logOutput          := flag.String("log-output", "stderr", "Change server log file handling (disable|stderr|file)")
     logOpts            := flag.String("log-opts", "timestamp,ip", "Comma-separated list of log options (timestamp|ip)")
 
-    /* Cache settings */
+    /* File system */
     fileMonitorFreq    := flag.Duration("file-monitor-freq", time.Second*60, "Change file monitor frequency.")
+    fileSystemRemap    := flag.String("file-remap", "", "New-line separated list of file remappings of format: `/virtual/relative/path -> /actual/relative/path`")
+
+    /* Cache settings */
     cacheSize          := flag.Int("cache-size", 50, "Change file cache size, measured in file count.")
     cacheFileSizeMax   := flag.Float64("cache-file-max", 0.5, "Change maximum file size to be cached (in megabytes).")
     cacheDisabled      := flag.Bool("disable-cache", false, "Disable file caching.")
@@ -134,8 +138,6 @@ func setupServer() []*GophorListener {
     if *disableCgi {
         Config.SysLog.Info("", "CGI support disabled")
         Config.CgiEnabled = false
-
-
     } else {
         /* Enable CGI */
         Config.SysLog.Info("", "CGI support enabled")
@@ -157,7 +159,7 @@ func setupServer() []*GophorListener {
 
     /* If running as root, get ready to drop privileges */
     if syscall.Getuid() == 0 || syscall.Getgid() == 0 {
-        Config.SysLog.Fatal("", "Gophor does not support running as root!\n")
+        log.Fatalf("", "Gophor does not support running as root!\n")
     }
 
     /* Enter server dir */
@@ -176,11 +178,11 @@ func setupServer() []*GophorListener {
 
         l, err := BeginGophorListen(*serverBindAddr, *serverHostname, strconv.Itoa(*serverPort), strconv.Itoa(*serverFwdPort), *serverRoot)
         if err != nil {
-            Config.SysLog.Fatal("", "Error setting up (unencrypted) listener: %s\n", err.Error())
+            log.Fatalf("Error setting up (unencrypted) listener: %s\n", err.Error())
         }
         listeners = append(listeners, l)
     } else {
-        Config.SysLog.Fatal("", "No valid port to listen on\n")
+        log.Fatalf("No valid port to listen on\n")
     }
 
     /* Compile regex statements */
@@ -213,6 +215,9 @@ func setupServer() []*GophorListener {
         cachePolicyFiles(*serverRoot, *serverDescription, *serverAdmin, *serverGeoloc)
     }
 
+    /* Setup file remappings */
+    Config.FileSystem.Remap, Config.FileSystem.ReverseRemap = parseFileSystemRemaps(*fileSystemRemap)
+
     /* Return the created listeners slice :) */
     return listeners
 }
@@ -220,6 +225,6 @@ func setupServer() []*GophorListener {
 func enterServerDir(path string) {
     err := syscall.Chdir(path)
     if err != nil {
-        Config.SysLog.Fatal("", "Error changing dir to server root %s: %s\n", path, err.Error())
+        log.Fatalf("Error changing dir to server root %s: %s\n", path, err.Error())
     }
 }

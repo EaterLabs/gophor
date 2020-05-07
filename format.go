@@ -174,21 +174,21 @@ func buildLine(t ItemType, name, selector, host string, port string) []byte {
 
     /* Add name, truncate name if too long */    
     if len(name) > Config.PageWidth {
-        ret += name[:Config.PageWidth-5]+"...\t"
+        ret += name[:Config.PageWidth-5]+"..."+Tab
     } else {
-        ret += name+"\t"
+        ret += name+Tab
     }
 
     /* Add selector. If too long use err, skip if empty */
     selectorLen := len(selector)
     if selectorLen > MaxSelectorLen {
-        ret += SelectorErrorStr+"\t"
+        ret += SelectorErrorStr+Tab
     } else if selectorLen > 0 {
-        ret += selector+"\t"
+        ret += selector+Tab
     }
 
     /* Add host + port */
-    ret += host+"\t"+port+DOSLineEnd
+    ret += host+Tab+port+DOSLineEnd
 
     return []byte(ret)
 }

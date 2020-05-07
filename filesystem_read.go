@@ -140,24 +140,29 @@ func listDir(responder *Responder, hidden map[string]bool) *GophorError {
     dirContents = append(dirContents, buildLine(TypeDirectory, "..", responder.Request.PathJoinSelector(".."), responder.Host.Name(), responder.Host.Port())...)
 
     /* Walk through files :D */
+    var reqPath *RequestPath
     for _, file := range files {
-        /* If regex match in restricted files || requested hidden */
-        if _, ok := hidden[file.Name()]; ok {
+        reqPath = NewRequestPath(responder.Request.RootDir(), file.Name())
+
+        /* If hidden file, or restricted file, continue! */
+        if isHiddenFile(hidden, file.Name()) || isRestrictedFile(reqPath.Relative()) {
             continue
         }
+
+        /* If requires remap, do so! */
+        Config.FileSystem.ReverseRemapRequestPath(reqPath)
 
         /* Handle file, directory or ignore others */
         switch {
             case file.Mode() & os.ModeDir != 0:
                 /* Directory -- create directory listing */
-                itemPath := responder.Request.PathJoinSelector(file.Name())
-                dirContents = append(dirContents, buildLine(TypeDirectory, file.Name(), itemPath, responder.Host.Name(), responder.Host.Port())...)
+                dirContents = append(dirContents, buildLine(TypeDirectory, file.Name(), reqPath.Selector(), responder.Host.Name(), responder.Host.Port())...)
 
             case file.Mode() & os.ModeType == 0:
                 /* Regular file -- find item type and creating listing */
-                itemPath := responder.Request.PathJoinSelector(file.Name())
+                itemPath := reqPath.Selector()
                 itemType := getItemType(itemPath)
-                dirContents = append(dirContents, buildLine(itemType, file.Name(), itemPath, responder.Host.Name(), responder.Host.Port())...)
+                dirContents = append(dirContents, buildLine(itemType, file.Name(), reqPath.Selector(), responder.Host.Name(), responder.Host.Port())...)
 
             default:
                 /* Ignore */
@@ -166,6 +171,11 @@ func listDir(responder *Responder, hidden map[string]bool) *GophorError {
 
     /* Append the footer (including lastline), write and flush! */
     return responder.WriteFlush(append(dirContents, Config.FooterText...))
+}
+
+func isHiddenFile(hiddenMap map[string]bool, fileName string) bool {
+    _, ok := hiddenMap[fileName]
+    return ok
 }
 
 /* Took a leaf out of go-gopher's book here. */

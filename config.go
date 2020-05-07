@@ -13,15 +13,15 @@ import (
  */
 type ServerConfig struct {
     /* Executable Settings */
-    Env               []string
-    CgiEnv            []string
-    CgiEnabled        bool
-    MaxExecRunTime    time.Duration
+    Env                []string
+    CgiEnv             []string
+    CgiEnabled         bool
+    MaxExecRunTime     time.Duration
 
     /* Content settings */
-    CharSet           string
-    FooterText        []byte
-    PageWidth         int
+    CharSet            string
+    FooterText         []byte
+    PageWidth          int
 
     /* Regex */
     CmdParseLineRegex  *regexp.Regexp
@@ -29,13 +29,13 @@ type ServerConfig struct {
     RestrictedCommands []*regexp.Regexp
 
     /* Logging */
-    SysLog            LoggerInterface
-    AccLog            LoggerInterface
+    SysLog             LoggerInterface
+    AccLog             LoggerInterface
 
     /* Filesystem access */
-    FileSystem        *FileSystem
+    FileSystem         *FileSystem
 
-    /*  */
+    /* Buffer sizes */
     SocketWriteBufSize int
     SocketReadBufSize  int
     SocketReadMax      int

@@ -2,7 +2,39 @@ package main
 
 import (
     "strings"
+    "log"
 )
+
+const (
+    FileRemapSeparator = " -> "
+)
+
+/* Parse file system remaps */
+func parseFileSystemRemaps(fileSystemRemap string) (map[string]string, map[string]string) {
+    remap := make(map[string]string)
+    reverseRemap := make(map[string]string)
+
+    for _, remapEntry := range strings.Split(fileSystemRemap, UnixLineEnd) {
+        /* Empty remap entry */
+        if len(remapEntry) == 0 {
+            continue
+        }
+
+        /* Split remap entry into virtual and actual path, then append */
+        mapSplit := strings.Split(remapEntry, FileRemapSeparator)
+        if len(mapSplit) != 2 {
+            log.Fatalf("Invalid filesystem remap entry: %s\n", remapEntry)
+        } else {
+            virtualPath := strings.TrimPrefix(mapSplit[0], "/")
+            actualPath := strings.TrimPrefix(mapSplit[1], "/")
+
+            remap[virtualPath] = actualPath
+            reverseRemap[actualPath] = virtualPath
+        }
+    }
+
+    return remap, reverseRemap
+}
 
 /* Parse a request string into a path and parameters string */
 func parseRequestString(request string) (string, []string) {

@@ -52,11 +52,11 @@ func (l *Logger) Fatal(prefix, format string, args ...interface{}) {
     l.Logger.Fatalf(LogPrefixFatal+prefix+format, args...)
 }
 
+/* Logger implementation that ignores the prefix (e.g. when not printing IPs) */
 type LoggerNoPrefix struct {
     Logger *log.Logger
 }
 
-/* Logger implementation that ignores the prefix (e.g. when not printing IPs) */
 func (l *LoggerNoPrefix) Info(prefix, format string, args ...interface{}) {
     /* Ignore the prefix */
     l.Logger.Printf(LogPrefixInfo+format, args...)
