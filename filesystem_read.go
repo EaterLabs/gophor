@@ -111,21 +111,21 @@ func unixLineEndSplitter(data []byte, atEOF bool) (advance int, token []byte, er
 }
 
 /* List the files in a directory, hiding those requested */
-func listDir(request *Request, hidden map[string]bool) *GophorError {
+func listDir(responder *Responder, hidden map[string]bool) *GophorError {
     /* Open directory file descriptor */
-    fd, err := os.Open(request.AbsPath())
+    fd, err := os.Open(responder.Request.AbsPath())
     if err != nil {
-        Config.SysLog.Error("", "failed to open %s: %s\n", request.AbsPath(), err.Error())
+        Config.SysLog.Error("", "failed to open %s: %s\n", responder.Request.AbsPath(), err.Error())
         return &GophorError{ FileOpenErr, err }
     }
 
     /* Read files in directory */
     files, err := fd.Readdir(-1)
     if err != nil {
-        Config.SysLog.Error("", "failed to enumerate dir %s: %s\n", request.AbsPath(), err.Error())
+        Config.SysLog.Error("", "failed to enumerate dir %s: %s\n", responder.Request.AbsPath(), err.Error())
         return &GophorError{ DirListErr, err }
     }
-
+    
     /* Sort the files by name */
     sort.Sort(byName(files))
 
@@ -133,11 +133,11 @@ func listDir(request *Request, hidden map[string]bool) *GophorError {
     dirContents := make([]byte, 0)
 
     /* First add a title + a space */
-    dirContents = append(dirContents, buildLine(TypeInfo, "[ "+request.Host.Name()+request.SelectorPath()+" ]", "TITLE", NullHost, NullPort)...)
+    dirContents = append(dirContents, buildLine(TypeInfo, "[ "+responder.Host.Name()+responder.Request.SelectorPath()+" ]", "TITLE", NullHost, NullPort)...)
     dirContents = append(dirContents, buildInfoLine("")...)
 
     /* Add a 'back' entry. GoLang Readdir() seems to miss this */
-    dirContents = append(dirContents, buildLine(TypeDirectory, "..", request.PathJoinSelector(".."), request.Host.Name(), request.Host.Port())...)
+    dirContents = append(dirContents, buildLine(TypeDirectory, "..", responder.Request.PathJoinSelector(".."), responder.Host.Name(), responder.Host.Port())...)
 
     /* Walk through files :D */
     for _, file := range files {
@@ -150,14 +150,14 @@ func listDir(request *Request, hidden map[string]bool) *GophorError {
         switch {
             case file.Mode() & os.ModeDir != 0:
                 /* Directory -- create directory listing */
-                itemPath := request.PathJoinSelector(file.Name())
-                dirContents = append(dirContents, buildLine(TypeDirectory, file.Name(), itemPath, request.Host.Name(), request.Host.Port())...)
+                itemPath := responder.Request.PathJoinSelector(file.Name())
+                dirContents = append(dirContents, buildLine(TypeDirectory, file.Name(), itemPath, responder.Host.Name(), responder.Host.Port())...)
 
             case file.Mode() & os.ModeType == 0:
                 /* Regular file -- find item type and creating listing */
-                itemPath := request.PathJoinSelector(file.Name())
+                itemPath := responder.Request.PathJoinSelector(file.Name())
                 itemType := getItemType(itemPath)
-                dirContents = append(dirContents, buildLine(itemType, file.Name(), itemPath, request.Host.Name(), request.Host.Port())...)
+                dirContents = append(dirContents, buildLine(itemType, file.Name(), itemPath, responder.Host.Name(), responder.Host.Port())...)
 
             default:
                 /* Ignore */
@@ -165,7 +165,7 @@ func listDir(request *Request, hidden map[string]bool) *GophorError {
     }
 
     /* Append the footer (including lastline), write and flush! */
-    return request.WriteFlush(append(dirContents, Config.FooterText...))
+    return responder.WriteFlush(append(dirContents, Config.FooterText...))
 }
 
 /* Took a leaf out of go-gopher's book here. */

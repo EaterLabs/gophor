@@ -89,8 +89,11 @@ func (worker *Worker) Serve() {
     /* Create new request from dataStr */
     request := NewSanitizedRequest(worker.Conn, received)
 
+    /* Create new responder from request */
+    responder := NewResponder(worker.Conn, request)
+
     /* Handle request */
-    gophorErr := Config.FileSystem.HandleRequest(request)
+    gophorErr := Config.FileSystem.HandleRequest(responder)
 
     /* Handle any error */
     if gophorErr != nil {
@@ -98,17 +101,17 @@ func (worker *Worker) Serve() {
         Config.SysLog.Error("", gophorErr.Error())
 
         /* Generate response bytes from error code */
-        response := generateGopherErrorResponseFromCode(gophorErr.Code)
+        errResponse := generateGopherErrorResponseFromCode(gophorErr.Code)
 
         /* If we got response bytes to send? SEND 'EM! */
-        if response != nil {
+        if errResponse != nil {
             /* No gods. No masters. We don't care about error checking here */
-            request.WriteFlush(response)
+            responder.WriteFlush(errResponse)
         }
 
-        request.AccessLogError("Failed to serve: %s\n", request.AbsPath())
+        responder.AccessLogError("Failed to serve: %s\n", request.AbsPath())
     } else {
         /* Log served */
-        request.AccessLogInfo("Served: %s\n", request.AbsPath())
+        responder.AccessLogInfo("Served: %s\n", request.AbsPath())
     }
 }

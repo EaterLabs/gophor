@@ -40,12 +40,15 @@ func setupInitialCgiEnviron() []string {
     }
 }
 
-func executeCgi(request *Request) *GophorError {
+func executeCgi(responder *Responder) *GophorError {
+    /* Easier if we grab a pointer to the request here */
+    request := responder.Request
+
     /* Get initial CgiEnv variables */
     cgiEnv := Config.CgiEnv
-    cgiEnv = append(cgiEnv, envKeyValue("SERVER_NAME",     request.Host.Name())) /* MUST be set to name of server host client is connecting to */
-    cgiEnv = append(cgiEnv, envKeyValue("SERVER_PORT",     request.Host.Port())) /* MUST be set to the server port that client is connecting to */
-    cgiEnv = append(cgiEnv, envKeyValue("REMOTE_ADDR",     request.Client.Ip())) /* Remote client addr, MUST be set */
+    cgiEnv = append(cgiEnv, envKeyValue("SERVER_NAME",     responder.Host.Name())) /* MUST be set to name of server host client is connecting to */
+    cgiEnv = append(cgiEnv, envKeyValue("SERVER_PORT",     responder.Host.Port())) /* MUST be set to the server port that client is connecting to */
+    cgiEnv = append(cgiEnv, envKeyValue("REMOTE_ADDR",     responder.Client.Ip())) /* Remote client addr, MUST be set */
 
     /* We store the query string in Parameters[0]. Ensure we git without initial delimiter */
     var queryString string
@@ -62,8 +65,8 @@ func executeCgi(request *Request) *GophorError {
     cgiEnv = append(cgiEnv, envKeyValue("REQUEST_URI",     "/"+request.RelPath()+request.Parameters[0]))
 
     /* Fuck it. For now, we don't support PATH_INFO. It's a piece of shit variable */
-//    cgiEnv = append(cgiEnv, envKeyValue("PATH_INFO",       request.Parameters[0])) /* Sub-resource to be fetched by script, derived from path hierarch portion of URI. NOT URL encoded */
-//    cgiEnv = append(cgiEnv, envKeyValue("PATH_TRANSLATED", request.AbsPath())) /* Take PATH_INFO, parse as local URI and append root dir */
+//    cgiEnv = append(cgiEnv, envKeyValue("PATH_INFO",       responder.Parameters[0])) /* Sub-resource to be fetched by script, derived from path hierarch portion of URI. NOT URL encoded */
+//    cgiEnv = append(cgiEnv, envKeyValue("PATH_TRANSLATED", responder.AbsPath())) /* Take PATH_INFO, parse as local URI and append root dir */
 
 /* We ignore these due to just CBA and we're not implementing authorization yet */
 //    cgiEnv = append(cgiEnv, envKeyValue("AUTH_TYPE",       "")) /* Any method used my server to authenticate user, MUST be set if auth'd */
@@ -72,18 +75,18 @@ func executeCgi(request *Request) *GophorError {
 //    cgiEnv = append(cgiEnv, envKeyValue("REMOTE_HOST",     "")) /* Remote client domain name */
 //    cgiEnv = append(cgiEnv, envKeyValue("REMOTE_USER",     "")) /* Remote user ID, if AUTH_TYPE, MUST be set */
 
-    return execute(request.Writer, cgiEnv, request.AbsPath(), nil)
+    return execute(responder.Writer, cgiEnv, request.AbsPath(), nil)
 }
 
-func executeFile(request *Request) *GophorError {
-    return execute(request.Writer, Config.Env, request.AbsPath(), request.Parameters)
+func executeFile(responder *Responder) *GophorError {
+    return execute(responder.Writer, Config.Env, responder.Request.AbsPath(), responder.Request.Parameters)
 }
 
-func executeCommand(request *Request) *GophorError {
-    if isRestrictedCommand(request.AbsPath()) {
+func executeCommand(responder *Responder) *GophorError {
+    if isRestrictedCommand(responder.Request.AbsPath()) {
         return &GophorError{ RestrictedCommandErr, nil }
     }
-    return execute(request.Writer, Config.Env, request.AbsPath(), request.Parameters)
+    return execute(responder.Writer, Config.Env, responder.Request.AbsPath(), responder.Request.Parameters)
 }
 
 func execute(writer io.Writer, env []string, path string, args []string) *GophorError {
@@ -148,7 +151,7 @@ func execute(writer io.Writer, env []string, path string, args []string) *Gophor
 
     if exitCode != 0 {
         /* If non-zero exit code return error */
-        Config.SysLog.Error("", "Error executing: %s\n", cmd.String())
+        Config.SysLog.Error("", "Error executing: %s\n", path)
         return &GophorError{ CommandExitCodeErr, err }
     } else {
         return nil
