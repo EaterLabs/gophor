@@ -21,15 +21,16 @@ func (worker *Worker) Serve() {
         worker.Conn.Conn.Close()
     }()
 
-    var count int
-    var err error
 
     /* Read buffer + final result */
     buf := make([]byte, SocketReadBufSize)
-    received := ""
 
-    iter := 0
+    received := ""
+    receivedCount := 0
     endReached := false
+
+    var count int
+    var err error
     for {
         /* Buffered read from conn */
         count, err = worker.Conn.Read(buf)
@@ -46,7 +47,7 @@ func (worker *Worker) Serve() {
                 }
             }
             received += string(buf[i])
-
+            receivedCount += 1
         }
 
         /* Handle errors AFTER checking we didn't receive some bytes */
@@ -64,13 +65,10 @@ func (worker *Worker) Serve() {
         }
 
         /* Hit max read chunk size, send error + close connection */
-        if iter == MaxSocketReadChunks {
+        if receivedCount >= Config.SocketReadMax {
             Config.SysLog.Error("", "Reached max socket read size %d. Closing connection...\n", MaxSocketReadChunks*SocketReadBufSize)
             return
         }
-
-        /* Keep count :) */
-        iter += 1
     }
 
     /* Handle URL request if presented */

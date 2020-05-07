@@ -2,6 +2,7 @@ package main
 
 import (
     "regexp"
+    "time"
 )
 
 /* ServerConfig:
@@ -15,6 +16,7 @@ type ServerConfig struct {
     Env               []string
     CgiEnv            []string
     CgiEnabled        bool
+    MaxExecRunTime    time.Duration
 
     /* Content settings */
     CharSet           string
@@ -32,4 +34,11 @@ type ServerConfig struct {
 
     /* Filesystem access */
     FileSystem        *FileSystem
+
+    /*  */
+    SocketWriteBufSize int
+    SocketReadBufSize  int
+    SocketReadMax      int
+    SkipPrefixBufSize  int
+    FileReadBufSize    int
 }

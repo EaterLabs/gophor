@@ -1,14 +1,8 @@
 package main
 
 import (
-    "io"
     "path"
     "strings"
-    "bufio"
-)
-
-const (
-    SocketWriteBufSize = 4096
 )
 
 type RequestPath struct {
@@ -106,72 +100,6 @@ func (r *Request) PathTrimAbsSuffix(suffix string) string {
 
 func (r *Request) PathJoinRootDir(extPath string) string {
     return path.Join(r.Path.RootDir(), extPath)
-}
-
-type Responder struct {
-    Host    *ConnHost
-    Client  *ConnClient
-    Writer  *bufio.Writer
-    Request *Request
-}
-
-func NewSanitizedRequest(conn *GophorConn, requestStr string) *Request {
-    relPath, paramaters := parseRequestString(requestStr)
-    relPath = sanitizeRelativePath(conn.RootDir(), relPath)
-    return &Request{ NewRequestPath(conn.RootDir(), relPath), paramaters }
-}
-
-func NewResponder(conn *GophorConn, request *Request) *Responder {
-    bufWriter := bufio.NewWriterSize(conn.Conn, SocketWriteBufSize)
-    return &Responder{ conn.Host, conn.Client, bufWriter, request }
-}
-
-func (r *Responder) AccessLogInfo(format string, args ...interface{}) {
-    Config.AccLog.Info("("+r.Client.AddrStr()+") ", format, args...)
-}
-
-func (r *Responder) AccessLogError(format string, args ...interface{}) {
-    Config.AccLog.Error("("+r.Client.AddrStr()+") ", format, args...)
-}
-
-func (r *Responder) Write(data []byte) *GophorError {
-    _, err := r.Writer.Write(data)
-    if err != nil {
-        return &GophorError{ BufferedWriteErr, err }
-    }
-    return nil
-}
-
-func (r *Responder) WriteFlush(data []byte) *GophorError {
-    _, err := r.Writer.Write(data)
-    if err != nil {
-        return &GophorError{ BufferedWriteErr, err }
-    }
-    return r.Flush()
-}
-
-func (r *Responder) Flush() *GophorError {
-    err := r.Writer.Flush()
-    if err != nil {
-        return &GophorError{ BufferedWriteFlushErr, err }
-    }
-    return nil
-}
-
-func (r *Responder) SafeFlush(gophorErr *GophorError) *GophorError {
-    if gophorErr != nil {
-        return gophorErr
-    } else {
-        return r.Flush()
-    }
-}
-
-func (r *Responder) WriteRaw(reader io.Reader) *GophorError {
-    _, err := r.Writer.ReadFrom(reader)
-    if err != nil {
-        return &GophorError{ BufferedWriteReadErr, err }
-    }
-    return r.Flush()
 }
 
 /* Sanitize a request path string */

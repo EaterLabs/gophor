@@ -31,6 +31,7 @@ const (
     BufferReadErr         ErrorCode = iota
     CommandStartErr       ErrorCode = iota
     CommandExitCodeErr    ErrorCode = iota
+    CgiOutputErr          ErrorCode = iota
     CgiDisabledErr        ErrorCode = iota
     RestrictedCommandErr  ErrorCode = iota
 
@@ -91,6 +92,8 @@ func (e *GophorError) Error() string {
             str = "buffer read fail"
         case CommandStartErr:
             str = "command start fail"
+        case CgiOutputErr:
+            str = "cgi output format error"
         case CommandExitCodeErr:
             str = "command exit code non-zero"
         case CgiDisabledErr:
@@ -148,6 +151,8 @@ func gophorErrorToResponseCode(code ErrorCode) ErrorResponseCode {
         case CommandStartErr:
             return ErrorResponse500
         case CommandExitCodeErr:
+            return ErrorResponse500
+        case CgiOutputErr:
             return ErrorResponse500
         case CgiDisabledErr:
             return ErrorResponse404

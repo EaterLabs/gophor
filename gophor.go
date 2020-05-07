@@ -78,7 +78,6 @@ func setupServer() []*GophorListener {
     /* Content settings */
     pageWidth          := flag.Int("page-width", 80, "Change page width used when formatting output.")
 //    charSet            := flag.String("charset", "", "Change default output charset.")
-    disableCgi         := flag.Bool("disable-cgi", false, "Disable CGI and all executable support.")
 
     footerText         := flag.String("footer", " Gophor, a Gopher server in Go.", "Change gophermap footer text (Unix new-line separated lines).")
     footerSeparator    := flag.Bool("no-footer-separator", false, "Disable footer line separator.")
@@ -92,6 +91,18 @@ func setupServer() []*GophorListener {
     serverAdmin        := flag.String("admin-email", "", "Change admin email in generated caps.txt.")
     serverGeoloc       := flag.String("geoloc", "", "Change server gelocation string in generated caps.txt.")
 
+    /* Exec settings */
+    disableCgi         := flag.Bool("disable-cgi", false, "Disable CGI and all executable support.")
+    safeExecPath       := flag.String("safe-path", "/usr/bin:/bin", "Set safe PATH variable to be used when executing CGI scripts, gophermaps and inline shell commands.")
+    maxExecRunTime     := flag.Duration("max-exec-time", time.Second*3, "Change max executable CGI, gophermap and inline shell command runtime.")
+
+    /* Buffer sizes */
+    socketWriteBuf     := flag.Int("socket-write-buf", 4096, "Change socket write buffer size (bytes).")
+    socketReadBuf      := flag.Int("socket-read-buf", 256, "Change socket read buffer size (bytes).")
+    socketReadMax      := flag.Int("socket-read-max", 8, "Change socket read count max (integer multiplier socket-read-buf-max)")
+    skipPrefixBuf      := flag.Int("cgi-header-max", 4096, "Change max CGI read count to look for and strip HTTP headers before sending raw (bytes).")
+    fileReadBuf        := flag.Int("file-read-buf", 4096, "Change file read buffer size (bytes).")
+
     /* Version string */
     version            := flag.Bool("version", false, "Print version information.")
 
@@ -103,10 +114,18 @@ func setupServer() []*GophorListener {
 
     /* Setup the server configuration instance and enter as much as we can right now */
     Config = new(ServerConfig)
+
+    /* Set misc content settings */
     Config.PageWidth = *pageWidth
 
+    /* Setup various buffer sizes */
+    Config.SocketWriteBufSize = *socketWriteBuf
+    Config.SocketReadBufSize  = *socketReadBuf
+    Config.SocketReadMax      = *socketReadBuf * *socketReadMax
+    Config.FileReadBufSize    = *fileReadBuf
+
     /* Have to be set AFTER page width variable set */
-    Config.FooterText  = formatGophermapFooter(*footerText, !*footerSeparator)
+    Config.FooterText = formatGophermapFooter(*footerText, !*footerSeparator)
 
     /* Setup Gophor logging system */
     Config.SysLog, Config.AccLog = setupLoggers(*logOutput, *logOpts, *systemLogPath, *accessLogPath)
@@ -115,9 +134,25 @@ func setupServer() []*GophorListener {
     if *disableCgi {
         Config.SysLog.Info("", "CGI support disabled")
         Config.CgiEnabled = false
+
+
     } else {
+        /* Enable CGI */
         Config.SysLog.Info("", "CGI support enabled")
         Config.CgiEnabled = true
+
+        /* Set safe executable path and setup environments */
+        Config.SysLog.Info("", "Setting safe executable path: %s\n", *safeExecPath)
+        Config.Env = setupExecEnviron(*safeExecPath)
+        Config.CgiEnv = setupInitialCgiEnviron(*safeExecPath)
+
+        /* Set executable watchdog */
+        Config.SysLog.Info("", "Maximum executable time: %s\n", *maxExecRunTime)
+        Config.MaxExecRunTime = *maxExecRunTime
+
+        /* Specific to CGI buffer */
+        Config.SysLog.Info("", "Maximum CGI HTTP header read-ahead: %d bytes\n", *skipPrefixBuf)
+        Config.SkipPrefixBufSize = *skipPrefixBuf
     }
 
     /* If running as root, get ready to drop privileges */
@@ -128,12 +163,6 @@ func setupServer() []*GophorListener {
     /* Enter server dir */
     enterServerDir(*serverRoot)
     Config.SysLog.Info("", "Entered server directory: %s\n", *serverRoot)
-
-    /* Setup initial server shell environment with the info we have to hand */
-
-    /* Setup regular and cgi shell environments */
-    Config.Env    = setupExecEnviron()
-    Config.CgiEnv = setupInitialCgiEnviron()
 
     /* Setup listeners */
     listeners := make([]*GophorListener, 0)

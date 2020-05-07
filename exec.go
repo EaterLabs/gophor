@@ -4,27 +4,18 @@ import (
     "os/exec"
     "syscall"
     "strconv"
+    "bytes"
     "time"
     "io"
 )
 
-type ExecType int
-const (
-    /* Executable type */
-    ExecTypeCgi     ExecType = iota
-    ExecTypeRegular ExecType = iota
-
-    SafeExecPath     = "/usr/bin:/bin"
-    MaxExecRunTimeMs = time.Duration(time.Millisecond * 2500)
-)
-
-func setupExecEnviron() []string {
+func setupExecEnviron(path string) []string {
     return []string {
-        envKeyValue("PATH", SafeExecPath),
+        envKeyValue("PATH", path),
     }
 }
 
-func setupInitialCgiEnviron() []string {
+func setupInitialCgiEnviron(path string) []string {
     return []string{
         /* RFC 3875 standard */
         envKeyValue("GATEWAY_INTERFACE",  "CGI/1.1"), /* MUST be set to the dialect of CGI being used by the server */
@@ -34,7 +25,7 @@ func setupInitialCgiEnviron() []string {
         envKeyValue("REQUEST_METHOD",     "GET"), /* MUST be set to method by which script should process request. Always GET */
 
         /* Non-standard */
-        envKeyValue("PATH",               SafeExecPath),
+        envKeyValue("PATH",               path),
         envKeyValue("COLUMNS",            strconv.Itoa(Config.PageWidth)),
         envKeyValue("GOPHER_CHARSET",     Config.CharSet),
     }
@@ -75,7 +66,31 @@ func executeCgi(responder *Responder) *GophorError {
 //    cgiEnv = append(cgiEnv, envKeyValue("REMOTE_HOST",     "")) /* Remote client domain name */
 //    cgiEnv = append(cgiEnv, envKeyValue("REMOTE_USER",     "")) /* Remote user ID, if AUTH_TYPE, MUST be set */
 
-    return execute(responder.Writer, cgiEnv, request.AbsPath(), nil)
+     contentTypeReached := true
+     skipPrefixWriter := NewSkipPrefixWriter(
+         responder.Writer,
+         []byte(DOSLineEnd+DOSLineEnd),
+         func(skipBuffer []byte) bool {
+             split := bytes.Split(skipBuffer, []byte(DOSLineEnd))
+             for _, header := range split {
+                 header = bytes.ToLower(header)
+                 if bytes.HasPrefix(header, []byte("content-type:")) {
+                     contentTypeReached = true
+                     break
+                 }
+             }
+             return contentTypeReached
+         },
+    )
+
+    gophorErr := execute(skipPrefixWriter, cgiEnv, request.AbsPath(), nil)
+    if gophorErr != nil {
+        return gophorErr
+    } else if !contentTypeReached {
+        return &GophorError{ CgiOutputErr, nil }
+    } else {
+        return nil
+    }
 }
 
 func executeFile(responder *Responder) *GophorError {
@@ -115,7 +130,7 @@ func execute(writer io.Writer, env []string, path string, args []string) *Gophor
 
     /* Setup timer goroutine to kill cmd after x time */
     go func() {
-        time.Sleep(MaxExecRunTimeMs)
+        time.Sleep(Config.MaxExecRunTime)
 
         if cmd.ProcessState != nil {
             /* We've already finished */
