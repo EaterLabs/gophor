@@ -236,13 +236,9 @@ func readGophermap(request *Request) ([]GophermapSection, *GophorError) {
                     subRequest := &Request{ subRelPath, subParameters }
 
                     if !subRequest.PathHasAbsPrefix("/") {
-                        if Config.CgiEnabled {
-                            /* Special case here where command must be in path, return GophermapExecCommand */
-                            sections = append(sections, &GophermapExecCommandSection{ subRequest })
-                            break
-                        } else {
-                            break
-                        }
+                        /* Special case here where command must be in path, return GophermapExecCommand */
+                        sections = append(sections, &GophermapExecCommandSection{ subRequest })
+                        break
                     } else if subRequest.RelPath() == "" {
                         /* path cleaning failed */
                         break
@@ -261,7 +257,7 @@ func readGophermap(request *Request) ([]GophermapSection, *GophorError) {
                     /* Check if we've been supplied subgophermap or regular file */
                     if subRequest.PathHasAbsSuffix(GophermapFileStr) {
                         /* If executable, store as GophermapExecutable, else readGophermap() */
-                        if Config.CgiEnabled && stat.Mode().Perm() & 0100 != 0 {
+                        if stat.Mode().Perm() & 0100 != 0 {
                             sections = append(sections, &GophermapExecFileSection { subRequest })
                         } else {
                             /* Treat as any other gophermap! */
@@ -269,7 +265,7 @@ func readGophermap(request *Request) ([]GophermapSection, *GophorError) {
                         }
                     } else {
                         /* If stored in cgi-bin store as GophermapExecutable, else read into GophermapText */
-                        if Config.CgiEnabled && subRequest.PathHasRelPrefix(CgiBinDirStr) {
+                        if subRequest.PathHasRelPrefix(CgiBinDirStr) {
                             sections = append(sections, &GophermapExecCgiSection{ subRequest })
                         } else {
                             sections = append(sections, &GophermapFileSection{ subRequest })

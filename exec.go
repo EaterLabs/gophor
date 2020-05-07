@@ -32,9 +32,6 @@ func setupInitialCgiEnviron(path string) []string {
 }
 
 func executeCgi(responder *Responder) *GophorError {
-    /* Easier if we grab a pointer to the request here */
-    request := responder.Request
-
     /* Get initial CgiEnv variables */
     cgiEnv := Config.CgiEnv
     cgiEnv = append(cgiEnv, envKeyValue("SERVER_NAME",     responder.Host.Name())) /* MUST be set to name of server host client is connecting to */
@@ -43,17 +40,17 @@ func executeCgi(responder *Responder) *GophorError {
 
     /* We store the query string in Parameters[0]. Ensure we git without initial delimiter */
     var queryString string
-    if len(request.Parameters[0]) > 0 {
-        queryString = request.Parameters[0][1:]
+    if len(responder.Request.Parameters[0]) > 0 {
+        queryString = responder.Request.Parameters[0][1:]
     } else {
-        queryString = request.Parameters[0]
+        queryString = responder.Request.Parameters[0]
     }
     cgiEnv = append(cgiEnv, envKeyValue("QUERY_STRING",    queryString)) /* URL encoded search or parameter string, MUST be set even if empty */
-    cgiEnv = append(cgiEnv, envKeyValue("SCRIPT_NAME",     "/"+request.RelPath())) /* URI path (not URL encoded) which could identify the CGI script (rather than script's output) */
-    cgiEnv = append(cgiEnv, envKeyValue("SCRIPT_FILENAME", request.AbsPath()))     /* Basically SCRIPT_NAME absolute path */
-    cgiEnv = append(cgiEnv, envKeyValue("SELECTOR",        request.SelectorPath()))
-    cgiEnv = append(cgiEnv, envKeyValue("DOCUMENT_ROOT",   request.RootDir()))
-    cgiEnv = append(cgiEnv, envKeyValue("REQUEST_URI",     "/"+request.RelPath()+request.Parameters[0]))
+    cgiEnv = append(cgiEnv, envKeyValue("SCRIPT_NAME",     "/"+responder.Request.RelPath())) /* URI path (not URL encoded) which could identify the CGI script (rather than script's output) */
+    cgiEnv = append(cgiEnv, envKeyValue("SCRIPT_FILENAME", responder.Request.AbsPath()))     /* Basically SCRIPT_NAME absolute path */
+    cgiEnv = append(cgiEnv, envKeyValue("SELECTOR",        responder.Request.SelectorPath()))
+    cgiEnv = append(cgiEnv, envKeyValue("DOCUMENT_ROOT",   responder.Request.RootDir()))
+    cgiEnv = append(cgiEnv, envKeyValue("REQUEST_URI",     "/"+responder.Request.RelPath()+responder.Request.Parameters[0]))
 
     /* Fuck it. For now, we don't support PATH_INFO. It's a piece of shit variable */
 //    cgiEnv = append(cgiEnv, envKeyValue("PATH_INFO",       responder.Parameters[0])) /* Sub-resource to be fetched by script, derived from path hierarch portion of URI. NOT URL encoded */
@@ -83,7 +80,7 @@ func executeCgi(responder *Responder) *GophorError {
          },
     )
 
-    gophorErr := execute(skipPrefixWriter, cgiEnv, request.AbsPath(), nil)
+    gophorErr := execute(skipPrefixWriter, cgiEnv, responder.Request.AbsPath(), nil)
     if gophorErr != nil {
         return gophorErr
     } else if !contentTypeReached {
@@ -105,6 +102,11 @@ func executeCommand(responder *Responder) *GophorError {
 }
 
 func execute(writer io.Writer, env []string, path string, args []string) *GophorError {
+    /* If CGI disbabled, just return error */
+    if !Config.CgiEnabled {
+        return &GophorError{ CgiDisabledErr, nil }
+    }
+
     /* Setup command */
     var cmd *exec.Cmd
     if args != nil {
