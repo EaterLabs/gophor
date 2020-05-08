@@ -27,8 +27,8 @@ WARNING: the development branch is filled with lava, fear and capitalism.
 
 - Executable gophermap support.
 
-- Insert files with automated line reflowing, and inline shell script
-  output within gophermaps.
+- Insert files with automated line reflowing, inline shell scripts and the
+  output of any CGI script or other executable gophermaps.
 
 - Support for all commonly accepted item type characters (beyond just
   RFC1436 support).
@@ -45,20 +45,21 @@ WARNING: the development branch is filled with lava, fear and capitalism.
 ### Gophermap parsing
 
 Due to the way that gophermap parsing is handled, if a gophermap is larger than
-the max cache'd file size or file caching is disabled, which is the same as
-same as setting max size to 0, these gophermaps WILL NOT be parsed by the server.
-The features you will miss out on for these files is are all those listed as
+the max cache'd file size or file caching is disabled (same as
+same as setting max size to 0), these gophermaps WILL NOT be parsed by the server.
+The features you will miss out on for these files are features listed
 `[SERVER ONLY]` in the gophermap item types section below.
 
 ### Chroots and privilege dropping
 
 Previously, chrooting to server directory and dropping privileges was supported
-by using Go C bindings. Unexpected circumstances have not yet been witnessed...
-But as this is not officially supported due to unexpected behaviour with
-`.Set{U,G}id()` under Linux, and there is a near 10 year ongoing tracked issue
-(https://github.com/golang/go/issues/1435), I decided to drop this feature for
-now. As soon as this patch gets merged I'll add support:
-https://go-review.googlesource.com/c/go/+/210639
+by using Go C bindings. This is not officially supported due to weird behaviour
+with `.Set{U,G}id()` under Linux. As such, the feature has been dropped for
+now.
+
+There is a near 10 year ongoing tracked issue
+(https://github.com/golang/go/issues/1435), and as soon as this patch gets
+merged I'll add support: https://go-review.googlesource.com/c/go/+/210639
 
 In place of removing this, request sanitization has been majorly improved and
 checks are in place to prevent running Gophor as root.
@@ -66,8 +67,8 @@ checks are in place to prevent running Gophor as root.
 If you run into issues binding to a lower port number due to insufficient
 permissions then there are a few alternatives:
 
-- set process capabilities using utility like capsh:
-  https://linux.die.net/man/1/capsh
+- set gophor process capabilities: e.g.
+  `setcap 'cap_net_bind_service=+ep' /usr/local/bin/gophor`
 
 - use Docker (or some other solution) and configure port forwarding on the
   host
@@ -98,8 +99,6 @@ gophor [args]
        -disable-cache       Disable file caching.
 
        -page-width          Change page width used when formatting output.
-       -disable-cgi         Disable CGI and all executable support.
-
        -footer              Change gophermap footer text (Unix new-line
                             separated lines).
        -no-footer-separator Disable footer text line separator.
@@ -113,6 +112,21 @@ gophor [args]
        -description         Change server description in generated caps.txt.
        -admin-email         Change admin email in generated caps.txt.
        -geoloc              Change geolocation in generated caps.txt.
+
+       -disable-cgi         Disable CGI and all executable support.
+       -safe-path           Set safe PATH variable to be used when executing
+                            CGI scripts, gophermaps and inline shell
+                            commands.
+       -max-exec-time       Change max executable CGI, gophermap and inline
+                            shell command runtime.
+
+       -socket-write-buf    Change socket write buffer size (bytes).
+       -socket-read-buf     Change socket read buffer size (bytes).
+       -socket-read-max     Change socket read count max (integer multiplier
+                            to socket-read-buf-max).
+       -cgi-header-max      Change max CGI read count to look for and strip
+                            HTTP headers before sending raw (bytes).
+       -file-read-buf       Change file read buffer size (bytes).
 
        -version             Print version string.
 ```
@@ -177,9 +191,7 @@ Type | Treat as | Meaning
 
 # Compliance
 
-We aim to comply more with GopherII, given how much newer than Gopher+ this
-standard is and that the extension, GopherIIbis is seemingly the work of
-Gopher+ continued.
+We aim to comply more with GopherII (see in references below).
 
 ## Item types
 
@@ -295,17 +307,17 @@ Null port: `0`
 
 # Todos
 
-- Character encoding support
+- Set default character encoding as US-ASCII
 
-- Fix file cache only updating if main gophermap changes (but not sub files)
+- Handle CGI status codes
+
+- FastCGI support
 
 - Personal user gopherspaces
 
 - Remapping of file paths
 
 - Rotating logs
-
-- Add last-mod-time to directory listings
 
 - TLS support
 
