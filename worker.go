@@ -16,11 +16,7 @@ type Worker struct {
 }
 
 func (worker *Worker) Serve() {
-    defer func() {
-        /* Close-up shop */
-        worker.Conn.Conn.Close()
-    }()
-
+    defer worker.Conn.Close()
 
     /* Read buffer + final result */
     buf := make([]byte, SocketReadBufSize)
@@ -84,18 +80,18 @@ func (worker *Worker) Serve() {
             /* Do nothing */
     }
 
-    /* Create new request from dataStr */
+    /* Create new request from received */
     request := NewSanitizedRequest(worker.Conn, received)
 
     /* Create new responder from request */
     responder := NewResponder(worker.Conn, request)
 
-    /* Handle request */
+    /* Handle request with supplied responder */
     gophorErr := Config.FileSystem.HandleRequest(responder)
 
     /* Handle any error */
     if gophorErr != nil {
-        /* Log serve failure to access, error to system */
+        /* Log serve failure to error to system */
         Config.SysLog.Error("", gophorErr.Error())
 
         /* Generate response bytes from error code */
@@ -107,9 +103,10 @@ func (worker *Worker) Serve() {
             responder.WriteFlush(errResponse)
         }
 
-        responder.AccessLogError("Failed to serve: %s\n", request.AbsPath())
+        /* Log failure to access */
+        responder.AccessLogError("Failed to serve: %s\n", request.Path.Absolute())
     } else {
-        /* Log served */
-        responder.AccessLogInfo("Served: %s\n", request.AbsPath())
+        /* Log served to access */
+        responder.AccessLogInfo("Served: %s\n", request.Path.Absolute())
     }
 }

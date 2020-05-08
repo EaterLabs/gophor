@@ -187,8 +187,8 @@ func setupServer() []*GophorListener {
 
     /* Compile regex statements */
     Config.CmdParseLineRegex  = compileCmdParseRegex()
-    Config.RestrictedFiles    = compileUserRestrictedFilesRegex(*restrictedFiles)
-    Config.RestrictedCommands = compileUserRestrictedCommandsRegex(*restrictedCommands)
+    Config.RestrictedFiles    = compileUserRestrictedRegex(*restrictedFiles)
+    Config.RestrictedCommands = compileUserRestrictedRegex(*restrictedCommands)
 
     /* Setup file cache */
     Config.FileSystem = new(FileSystem)
@@ -204,7 +204,7 @@ func setupServer() []*GophorListener {
         cachePolicyFiles(*serverRoot, *serverDescription, *serverAdmin, *serverGeoloc)
 
         /* Start file cache freshness checker */
-        go startFileMonitor(*fileMonitorFreq)
+        startFileMonitor(*fileMonitorFreq)
         Config.SysLog.Info("", "File caching enabled with: maxcount=%d maxsize=%.3fMB checkfreq=%s\n", *cacheSize, *cacheFileSizeMax, *fileMonitorFreq)
     } else {
         /* File caching disabled, init with zero max size so nothing gets cached */

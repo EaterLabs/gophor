@@ -3,50 +3,35 @@ package main
 import (
     "regexp"
     "strings"
+    "log"
 )
 
 func compileCmdParseRegex() *regexp.Regexp {
     return regexp.MustCompile(` `)
 }
 
-func compileUserRestrictedFilesRegex(restrictedFiles string) []*regexp.Regexp {
+/* Compile a user supplied new line separated list of regex statements */
+func compileUserRestrictedRegex(restrictions string) []*regexp.Regexp {
     /* Return slice */
-    restrictedFilesRegex := make([]*regexp.Regexp, 0)
+    restricted := make([]*regexp.Regexp, 0)
 
-    /* Split the user supplied RestrictedFiles string by new-line */
-    for _, expr := range strings.Split(restrictedFiles, "\n") {
+    /* Split the user supplied regex statements by new line */
+    for _, expr := range strings.Split(restrictions, "\n") {
+        /* Empty expression, skip */
         if len(expr) == 0 {
             continue
         }
+
+        /* Try compile regex then append */
         regex, err := regexp.Compile(expr)
         if err != nil {
-            Config.SysLog.Fatal("Failed compiling user restricted files regex: %s\n", expr)
+            log.Fatalf("Failed compiling user supplied regex: %s\n", expr)
         }
-        restrictedFilesRegex = append(restrictedFilesRegex, regex)
+        restricted = append(restricted, regex)
     }
 
-    return restrictedFilesRegex
+    return restricted
 }
-
-func compileUserRestrictedCommandsRegex(restrictedCommands string) []*regexp.Regexp {
-    /* Return slice */
-    restrictedCommandsRegex := make([]*regexp.Regexp, 0)
-
-    /* Split the user supplied RestrictedFiles string by new-line */
-    for _, expr := range strings.Split(restrictedCommands, "\n") {
-        if len(expr) == 0 {
-            continue
-        }
-        regex, err := regexp.Compile(expr)
-        if err != nil {
-            Config.SysLog.Fatal("Failed compiling user restricted commands regex: %s\n", expr)
-        }
-        restrictedCommandsRegex = append(restrictedCommandsRegex, regex)
-    }
-
-    return restrictedCommandsRegex
-}
-
 
 /* Iterate through restricted file expressions, check if file _is_ restricted */
 func isRestrictedFile(name string) bool {
@@ -58,6 +43,7 @@ func isRestrictedFile(name string) bool {
     return false
 }
 
+/* Iterate through restricted command expressions, check if command _is_ restricted */
 func isRestrictedCommand(name string) bool {
     for _, regex := range Config.RestrictedCommands {
         if regex.MatchString(name) {

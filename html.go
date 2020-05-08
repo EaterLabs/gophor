@@ -1,5 +1,6 @@
 package main
 
+/* Function does, as function is named */
 func generateHtmlRedirect(url string) []byte {
     content :=
         "<html>\n"+

@@ -8,8 +8,7 @@ import (
 type RequestPath struct {
     /* Path structure to allow hosts at
      * different roots while maintaining relative
-     * and absolute path names for returned values
-     * and filesystem reading
+     * and absolute path names for filesystem reading
      */
 
     Root   string
@@ -51,65 +50,54 @@ func (rp *RequestPath) Selector() string {
     }
 }
 
+func (rp *RequestPath) JoinRel(extPath string) string {
+    return path.Join(rp.Relative(), extPath)
+}
+
+func (rp *RequestPath) JoinAbs(extPath string) string {
+    return path.Join(rp.Absolute(), extPath)
+}
+
+func (rp *RequestPath) JoinSelector(extPath string) string {
+    return path.Join(rp.Selector(), extPath)
+}
+
+func (rp *RequestPath) HasAbsPrefix(prefix string) bool {
+    return strings.HasPrefix(rp.Absolute(), prefix)
+}
+
+func (rp *RequestPath) HasRelPrefix(prefix string) bool {
+    return strings.HasPrefix(rp.Relative(), prefix)
+}
+
+func (rp *RequestPath) HasRelSuffix(suffix string) bool {
+    return strings.HasSuffix(rp.Relative(), suffix)
+}
+
+func (rp *RequestPath) HasAbsSuffix(suffix string) bool {
+    return strings.HasSuffix(rp.Absolute(), suffix)
+}
+
+func (rp *RequestPath) TrimRelSuffix(suffix string) string {
+    return strings.TrimSuffix(strings.TrimSuffix(rp.Relative(), suffix), "/")
+}
+
+func (rp *RequestPath) TrimAbsSuffix(suffix string) string {
+    return strings.TrimSuffix(strings.TrimSuffix(rp.Absolute(), suffix), "/")
+}
+
+func (rp *RequestPath) JoinRootDir(extPath string) string {
+    return path.Join(rp.RootDir(), extPath)
+}
+
 type Request struct {
+    /* Holds onto a request path to the filesystem and
+     * a string slice of parsed parameters (usually nil
+     * or length 1)
+     */
+
     Path       *RequestPath
     Parameters []string
-}
-
-func (r *Request) RootDir() string {
-    return r.Path.RootDir()
-}
-
-func (r *Request) AbsPath() string {
-    return r.Path.Absolute()
-}
-
-func (r *Request) RelPath() string {
-    return r.Path.Relative()
-}
-
-func (r *Request) SelectorPath() string {
-    return r.Path.Selector()
-}
-
-func (r *Request) PathJoinSelector(extPath string) string {
-    return path.Join(r.SelectorPath(), extPath)
-}
-
-func (r *Request) PathJoinAbs(extPath string) string {
-    return path.Join(r.AbsPath(), extPath)
-}
-
-func (r *Request) PathJoinRel(extPath string) string {
-    return path.Join(r.RelPath(), extPath)
-}
-
-func (r *Request) PathHasAbsPrefix(prefix string) bool {
-    return strings.HasPrefix(r.AbsPath(), prefix)
-}
-
-func (r *Request) PathHasRelPrefix(prefix string) bool {
-    return strings.HasPrefix(r.RelPath(), prefix)
-}
-
-func (r *Request) PathHasRelSuffix(suffix string) bool {
-    return strings.HasSuffix(r.RelPath(), suffix)
-}
-
-func (r *Request) PathHasAbsSuffix(suffix string) bool {
-    return strings.HasSuffix(r.AbsPath(), suffix)
-}
-
-func (r *Request) PathTrimRelSuffix(suffix string) string {
-    return strings.TrimSuffix(strings.TrimSuffix(r.RelPath(), suffix), "/")
-}
-
-func (r *Request) PathTrimAbsSuffix(suffix string) string {
-    return strings.TrimSuffix(strings.TrimSuffix(r.AbsPath(), suffix), "/")
-}
-
-func (r *Request) PathJoinRootDir(extPath string) string {
-    return path.Join(r.Path.RootDir(), extPath)
 }
 
 /* Sanitize a request path string */

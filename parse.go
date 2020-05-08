@@ -99,7 +99,7 @@ func parseLineRequestString(requestPath *RequestPath, lineStr string) (*RequestP
     if strings.HasPrefix(lineStr, "/") {
         /* We are dealing with a file input of some kind. Figure out if CGI-bin */
         if strings.HasPrefix(lineStr[1:], CgiBinDirStr) {
-            /* CGI-bind script, parse requestPath and parameters as standard URL encoding */
+            /* CGI-bin script, parse requestPath and parameters as standard URL encoding */
             relPath, parameters := parseRequestString(lineStr)
             return NewRequestPath(requestPath.RootDir(), relPath), parameters
         } else {

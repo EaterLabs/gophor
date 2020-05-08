@@ -100,6 +100,9 @@ func (l *GophorListener) Accept() (*GophorConn, error) {
 }
 
 type DeadlineConn struct {
+    /* Simple wrapper to net.Conn that's sets deadlines
+     * on each call to Read() / Write()
+     */
     conn net.Conn
 }
 
@@ -117,12 +120,11 @@ func (c *DeadlineConn) Write(b []byte) (int, error) {
 
 func (c *DeadlineConn) Close() error {
     /* Implements closer */
-
     return c.conn.Close()
 }
 
 type GophorConn struct {
-    /* Simple net.Conn wrapper with virtual host and client info */
+    /* Wrap DeadlineConn with other connection details */
 
     Conn    *DeadlineConn
     Host    *ConnHost

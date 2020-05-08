@@ -17,13 +17,12 @@ const (
 
 type FileSystem struct {
     /* Holds and helps manage our file cache, as well as managing
-     * access and responding to filesystem requests submitted by
-     * a worker instance.
+     * access and responses to requests submitted a worker instance.
      */
 
-    CacheMap     *FixedMap    /* Fixed size cache map */
-    CacheMutex   sync.RWMutex /* RWMutex for safe cachemap access */
-    CacheFileMax int64        /* Cache file size max */
+    CacheMap     *FixedMap
+    CacheMutex   sync.RWMutex
+    CacheFileMax int64
     Remap        map[string]string
     ReverseRemap map[string]string
 }
@@ -51,7 +50,7 @@ func (fs *FileSystem)ReverseRemapRequestPath(requestPath *RequestPath) {
 
 func (fs *FileSystem) HandleRequest(responder *Responder) *GophorError {
     /* Check if restricted file */
-    if isRestrictedFile(responder.Request.RelPath()) {
+    if isRestrictedFile(responder.Request.Path.Relative()) {
         return &GophorError{ IllegalPathErr, nil }
     }
 
@@ -59,11 +58,11 @@ func (fs *FileSystem) HandleRequest(responder *Responder) *GophorError {
     fs.RemapRequestPath(responder.Request.Path)
 
     /* Get filesystem stat, check it exists! */
-    stat, err := os.Stat(responder.Request.AbsPath())
+    stat, err := os.Stat(responder.Request.Path.Absolute())
     if err != nil {
         /* Check file isn't in cache before throwing in the towel */
         fs.CacheMutex.RLock()
-        file := fs.CacheMap.Get(responder.Request.AbsPath())
+        file := fs.CacheMap.Get(responder.Request.Path.Absolute())
         if file == nil {
             fs.CacheMutex.RUnlock()
             return &GophorError{ FileStatErr, err }
@@ -78,21 +77,20 @@ func (fs *FileSystem) HandleRequest(responder *Responder) *GophorError {
         return gophorErr
     }
 
-    /* Handle file type */
     switch {
         /* Directory */
         case stat.Mode() & os.ModeDir != 0:
             /* Ignore anything under cgi-bin directory */
-            if responder.Request.PathHasRelPrefix(CgiBinDirStr) {
+            if responder.Request.Path.HasRelPrefix(CgiBinDirStr) {
                 return &GophorError{ IllegalPathErr, nil }
             }
 
             /* Check Gophermap exists */
-            gophermapPath := NewRequestPath(responder.Request.RootDir(), responder.Request.PathJoinRel(GophermapFileStr))
+            gophermapPath := NewRequestPath(responder.Request.Path.RootDir(), responder.Request.Path.JoinRel(GophermapFileStr))
             stat, err = os.Stat(gophermapPath.Absolute())
 
             if err == nil {
-                /* Gophermap exists! If executable and CGI enabled execute, else serve. */
+                /* Gophermap exists! If executable try return executed contents, else serve as regular gophermap. */
                 gophermapRequest := &Request{ gophermapPath, responder.Request.Parameters }
                 responder.Request = gophermapRequest
 
@@ -103,13 +101,13 @@ func (fs *FileSystem) HandleRequest(responder *Responder) *GophorError {
                 }
             } else {
                 /* No gophermap, serve directory listing */
-                return listDir(responder, map[string]bool{}, true)
+                return listDirAsGophermap(responder, map[string]bool{ gophermapPath.Relative(): true, CgiBinDirStr: true })
             }
 
         /* Regular file */
         case stat.Mode() & os.ModeType == 0:
-            /* If cgi-bin and CGI enabled, return executed contents. Else, fetch */
-            if responder.Request.PathHasRelPrefix(CgiBinDirStr) {
+            /* If cgi-bin, try return executed contents. Else, fetch regular file */
+            if responder.Request.Path.HasRelPrefix(CgiBinDirStr) {
                 return responder.SafeFlush(executeCgi(responder))
             } else {
                 return fs.FetchFile(responder)
@@ -124,7 +122,7 @@ func (fs *FileSystem) HandleRequest(responder *Responder) *GophorError {
 func (fs *FileSystem) FetchFile(responder *Responder) *GophorError {
     /* Get cache map read lock then check if file in cache map */
     fs.CacheMutex.RLock()
-    file := fs.CacheMap.Get(responder.Request.AbsPath())
+    file := fs.CacheMap.Get(responder.Request.Path.Absolute())
 
     if file != nil {
         /* File in cache -- before doing anything get file read lock */
@@ -153,7 +151,7 @@ func (fs *FileSystem) FetchFile(responder *Responder) *GophorError {
         /* Open file here, to check it exists, ready for file stat
          * and in case file is too big we pass it as a raw response
          */
-        fd, err := os.Open(responder.Request.AbsPath())
+        fd, err := os.Open(responder.Request.Path.Absolute())
         if err != nil {
             /* Error stat'ing file, unlock read mutex then return error */
             fs.CacheMutex.RUnlock()
@@ -177,17 +175,10 @@ func (fs *FileSystem) FetchFile(responder *Responder) *GophorError {
 
         /* Create new file contents */
         var contents FileContents
-        if responder.Request.PathHasAbsSuffix("/"+GophermapFileStr) {
-            contents = &GophermapContents{ responder.Request, nil }
+        if responder.Request.Path.HasRelSuffix(GophermapFileStr) {
+            contents = &GophermapContents{ responder.Request.Path, nil }
         } else {
-            contents = &RegularFileContents{ responder.Request, nil }
-        }
-
-        /* Compare file size (in MB) to CacheFileSizeMax. If larger, just send file raw */
-        if stat.Size() > fs.CacheFileMax {
-            /* Unlock the read mutex, we don't need it where we're going... returning, we're returning. */
-            fs.CacheMutex.RUnlock()
-            return contents.Render(responder)
+            contents = &RegularFileContents{ responder.Request.Path, nil }
         }
 
         /* Create new file wrapper around contents */
@@ -206,7 +197,7 @@ func (fs *FileSystem) FetchFile(responder *Responder) *GophorError {
         fs.CacheMutex.Lock()
 
         /* Put file in the FixedMap */
-        fs.CacheMap.Put(responder.Request.AbsPath(), file)
+        fs.CacheMap.Put(responder.Request.Path.Absolute(), file)
 
         /* Before unlocking cache mutex, lock file read for upcoming call to .Contents() */
         file.Mutex.RLock()
@@ -216,7 +207,7 @@ func (fs *FileSystem) FetchFile(responder *Responder) *GophorError {
         fs.CacheMutex.RLock()
     }
 
-    /* Read file contents into new variable for return, then unlock file read lock */
+    /* Write file contents via responder */
     gophorErr := file.WriteContents(responder)
     file.Mutex.RUnlock()
 
@@ -228,8 +219,7 @@ func (fs *FileSystem) FetchFile(responder *Responder) *GophorError {
 
 type File struct {
     /* Wraps around the cached contents of a file
-     * helping with management of this content by
-     * a FileSystem instance.
+     * helping with management.
      */
 
     Content     FileContents
@@ -254,11 +244,11 @@ func (f *File) CacheContents() *GophorError {
 
     /* Update lastRefresh, set fresh, unset deletion (not likely set) */
     f.LastRefresh = time.Now().UnixNano()
-    f.Fresh       = true
-
+    f.Fresh = true
     return nil
 }
 
+/* Start the file monitor! */
 func startFileMonitor(sleepTime time.Duration) {
     go func() {
         for {
@@ -274,6 +264,7 @@ func startFileMonitor(sleepTime time.Duration) {
     }()
 }
 
+/* Check file cache for freshness, deleting files not-on disk */
 func checkCacheFreshness() {
     /* Before anything, get cache write lock (in case we have to delete) */
     Config.FileSystem.CacheMutex.Lock()
@@ -288,16 +279,18 @@ func checkCacheFreshness() {
             continue
         }
 
+        /* Check file still exists on disk, delete and continue if not */
         stat, err := os.Stat(path)
         if err != nil {
-            /* Log file as not in cache, then delete */
             Config.SysLog.Error("", "Failed to stat file in cache: %s\n", path)
             Config.FileSystem.CacheMap.Remove(path)
             continue
         }
+
+        /* Get file's last modified time */
         timeModified := stat.ModTime().UnixNano()
 
-        /* If the file is marked as fresh, but file on disk newer, mark as unfresh */
+        /* If the file is marked as fresh, but file on disk is newer, mark as unfresh */
         if file.Fresh && file.LastRefresh < timeModified {
             file.Fresh = false
         }
@@ -307,8 +300,8 @@ func checkCacheFreshness() {
     Config.FileSystem.CacheMutex.Unlock()
 }
 
+/* Just a helper function to neaten-up checking if file contents is of generated type */
 func isGeneratedType(file *File) bool {
-    /* Just a helper function to neaten-up checking if file contents is of generated type */
     switch file.Content.(type) {
        case *GeneratedFileContents:
            return true

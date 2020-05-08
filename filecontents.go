@@ -17,7 +17,9 @@ type FileContents interface {
 }
 
 type GeneratedFileContents struct {
-    Contents []byte /* Generated file contents as byte slice */
+    /* Super simple, holds onto a slice of bytes */
+
+    Contents []byte
 }
 
 func (fc *GeneratedFileContents) Render(responder *Responder) *GophorError {
@@ -34,8 +36,12 @@ func (fc *GeneratedFileContents) Clear() {
 }
 
 type RegularFileContents struct {
-    Request  *Request     /* Stored filesystem request */
-    Contents []byte       /* File contents as byte slice */
+    /* Simple implemention that holds onto a RequestPath
+     * and slice containing cache'd content
+     */
+
+    Path     *RequestPath
+    Contents []byte
 }
 
 func (fc *RegularFileContents) Render(responder *Responder) *GophorError {
@@ -45,7 +51,7 @@ func (fc *RegularFileContents) Render(responder *Responder) *GophorError {
 func (fc *RegularFileContents) Load() *GophorError {
     /* Load the file into memory */
     var gophorErr *GophorError
-    fc.Contents, gophorErr = bufferedRead(fc.Request.AbsPath())
+    fc.Contents, gophorErr = bufferedRead(fc.Path.Absolute())
     return gophorErr
 }
 
@@ -54,8 +60,12 @@ func (fc *RegularFileContents) Clear() {
 }
 
 type GophermapContents struct {
-    Request  *Request /* Stored filesystem request */
-    Sections []GophermapSection /* Slice to hold differing gophermap sections */
+    /* Holds onto a RequestPath and slice containing individually
+     * renderable sections of the gophermap.
+     */
+
+    Path     *RequestPath
+    Sections []GophermapSection
 }
 
 func (gc *GophermapContents) Render(responder *Responder) *GophorError {
@@ -75,7 +85,7 @@ func (gc *GophermapContents) Render(responder *Responder) *GophorError {
 func (gc *GophermapContents) Load() *GophorError {
     /* Load the gophermap into memory as gophermap sections */
     var gophorErr *GophorError
-    gc.Sections, gophorErr = readGophermap(gc.Request)
+    gc.Sections, gophorErr = readGophermap(gc.Path)
     return gophorErr
 }
 
@@ -85,14 +95,14 @@ func (gc *GophermapContents) Clear() {
 
 type GophermapSection interface {
     /* Interface for storing differring types of gophermap
-     * sections and render when necessary
+     * sections to render when necessary
      */
 
     Render(*Responder) *GophorError
 }
 
 type GophermapTextSection struct {
-    Contents []byte /* Text contents */
+    Contents []byte
 }
 
 func (s *GophermapTextSection) Render(responder *Responder) *GophorError {
@@ -100,30 +110,26 @@ func (s *GophermapTextSection) Render(responder *Responder) *GophorError {
 }
 
 type GophermapDirectorySection struct {
-    Request *Request    /* Stored filesystem request */
-    Hidden  map[string]bool /* Hidden files map parsed from gophermap */
+    /* Holds onto a directory path, and a list of files
+     * to hide from the client when rendering.
+     */
+
+    Path    *RequestPath
+    Hidden  map[string]bool
 }
 
 func (g *GophermapDirectorySection) Render(responder *Responder) *GophorError {
-    /* Create new filesystem request from mixture of stored + supplied */
-    return listDir(
-        &Responder{
-            responder.Host,
-            responder.Client,
-            responder.Writer,
-            g.Request,
-        },
-        g.Hidden,
-        false,
-    )
+    /* Create new responder from supplied and using stored path */
+    return listDir(responder.CloneWithRequest(&Request{ g.Path, nil }), g.Hidden)
 }
 
 type GophermapFileSection struct {
-    Request *Request
+    /* Holds onto a file path to be read and rendered when requested */
+    Path *RequestPath
 }
 
 func (g *GophermapFileSection) Render(responder *Responder) *GophorError {
-    fileContents, gophorErr := readIntoGophermap(g.Request.AbsPath())
+    fileContents, gophorErr := readIntoGophermap(g.Path.Absolute())
     if gophorErr != nil {
         return gophorErr
     }
@@ -131,12 +137,13 @@ func (g *GophermapFileSection) Render(responder *Responder) *GophorError {
 }
 
 type GophermapSubmapSection struct {
-    Request *Request
+    /* Holds onto a gophermap path to be read and rendered when requested */
+    Path *RequestPath
 }
 
 func (g *GophermapSubmapSection) Render(responder *Responder) *GophorError {
     /* Load the gophermap into memory as gophermap sections */
-    sections, gophorErr := readGophermap(g.Request)
+    sections, gophorErr := readGophermap(g.Path)
     if gophorErr != nil {
         return gophorErr
     }
@@ -153,58 +160,51 @@ func (g *GophermapSubmapSection) Render(responder *Responder) *GophorError {
 }
 
 type GophermapExecCgiSection struct {
-    Request *Request /* Stored file system request */
+    /* Holds onto a request with CGI script path and supplied parameters */
+    Request *Request
 }
 
 func (g *GophermapExecCgiSection) Render(responder *Responder) *GophorError {
     /* Create new filesystem request from mixture of stored + supplied */
-    return executeCgi(&Responder{
-        responder.Host,
-        responder.Client,
-        responder.Writer,
-        g.Request,
-    })
+    return executeCgi(responder.CloneWithRequest(g.Request))
 }
 
 type GophermapExecFileSection struct {
-    Request *Request /* Stored file system request */
+    /* Holds onto a request with executable file path and supplied arguments */
+    Request *Request
 }
 
 func (g *GophermapExecFileSection) Render(responder *Responder) *GophorError {
-    return executeFile(&Responder{
-        responder.Host,
-        responder.Client,
-        responder.Writer,
-        g.Request,
-    })
+    /* Create new responder from supplied and using stored path */
+    return executeFile(responder.CloneWithRequest(g.Request))
 }
 
 type GophermapExecCommandSection struct {
+    /* Holds onto a request with shell command and supplied arguments */
     Request *Request
 }
 
 func (g *GophermapExecCommandSection) Render(responder *Responder) *GophorError {
-    return executeCommand(&Responder{
-        responder.Host,
-        responder.Client,
-        responder.Writer,
-        g.Request,
-    })
+    /* Create new responder from supplied and using stored path */
+    return executeCommand(responder.CloneWithRequest(g.Request))
 }
 
-func readGophermap(request *Request) ([]GophermapSection, *GophorError) {
+/* Read and parse a gophermap into separately cacheable and renderable GophermapSection */
+func readGophermap(path *RequestPath) ([]GophermapSection, *GophorError) {
     /* Create return slice */
     sections := make([]GophermapSection, 0)
 
     /* Create hidden files map now in case dir listing requested */
-    hidden := make(map[string]bool)
-    hidden[request.RelPath()] = true
+    hidden := map[string]bool{
+        path.Relative(): true, /* Ignore current gophermap */
+        CgiBinDirStr:    true, /* Ignore cgi-bin if found */
+    }
 
     /* Keep track of whether we've already come across a title line (only 1 allowed!) */
     titleAlready := false
 
     /* Perform buffered scan with our supplied splitter and iterators */
-    gophorErr := bufferedScan(request.AbsPath(),
+    gophorErr := bufferedScan(path.Absolute(),
         func(scanner *bufio.Scanner) bool {
             line := scanner.Text()
 
@@ -228,65 +228,61 @@ func readGophermap(request *Request) ([]GophermapSection, *GophorError) {
 
                 case TypeHiddenFile:
                     /* Add to hidden files map */
-                    hidden[request.PathJoinRel(line[1:])] = true
+                    hidden[path.JoinRel(line[1:])] = true
 
                 case TypeSubGophermap:
-                    /* Parse new requestPath and parameters (this automatically sanitizes requestPath) */
-                    subRelPath, subParameters := parseLineRequestString(request.Path, line[1:])
-                    subRequest := &Request{ subRelPath, subParameters }
+                    /* Parse new RequestPath and parameters */
+                    subPath, parameters := parseLineRequestString(path, line[1:])
 
-                    if !subRequest.PathHasAbsPrefix("/") {
-                        /* Special case here where command must be in path, return GophermapExecCommand */
-                        sections = append(sections, &GophermapExecCommandSection{ subRequest })
+                    if !subPath.HasAbsPrefix("/") {
+                        /* Special case here where command assumed in path, return GophermapExecCommandSection */
+                        sections = append(sections, &GophermapExecCommandSection{ &Request{ subPath, parameters } })
                         break
-                    } else if subRequest.RelPath() == "" {
-                        /* path cleaning failed */
-                        break
-                    } else if subRequest.RelPath() == request.RelPath() {
-                        /* Same as current gophermap. Recursion bad! */
+                    } else if subPath.Relative() == "" || subPath.Relative() == path.Relative() {
+                        /* Either path parsing failed, or we've been supplied same gophermap, and recursion is
+                         * recursion is recursion is bad kids!
+                         */
                         break
                     }
 
                     /* Perform file stat */
-                    stat, err := os.Stat(subRequest.AbsPath())
+                    stat, err := os.Stat(subPath.Absolute())
                     if (err != nil) || (stat.Mode() & os.ModeDir != 0) {
                         /* File read error or is directory */
                         break
                     }
 
                     /* Check if we've been supplied subgophermap or regular file */
-                    if subRequest.PathHasAbsSuffix(GophermapFileStr) {
-                        /* If executable, store as GophermapExecutable, else readGophermap() */
+                    if subPath.HasAbsSuffix(GophermapFileStr) {
+                        /* If executable, store as GophermapExecFileSection, else GophermapSubmapSection */
                         if stat.Mode().Perm() & 0100 != 0 {
-                            sections = append(sections, &GophermapExecFileSection { subRequest })
+                            sections = append(sections, &GophermapExecFileSection { &Request{ subPath, parameters } })
                         } else {
-                            /* Treat as any other gophermap! */
-                            sections = append(sections, &GophermapSubmapSection{ subRequest })
+                            sections = append(sections, &GophermapSubmapSection{ subPath })
                         }
                     } else {
-                        /* If stored in cgi-bin store as GophermapExecutable, else read into GophermapText */
-                        if subRequest.PathHasRelPrefix(CgiBinDirStr) {
-                            sections = append(sections, &GophermapExecCgiSection{ subRequest })
+                        /* If stored in cgi-bin store as GophermapExecCgiSection, else GophermapFileSection */
+                        if subPath.HasRelPrefix(CgiBinDirStr) {
+                            sections = append(sections, &GophermapExecCgiSection{ &Request{ subPath, parameters} })
                         } else {
-                            sections = append(sections, &GophermapFileSection{ subRequest })
+                            sections = append(sections, &GophermapFileSection{ subPath })
                         }
                     }
 
                 case TypeEnd:
-                    /* Lastline, break out at end of loop. Interface method Contents()
-                     * will append a last line at the end so we don't have to worry about
-                     * that here, only stopping the loop.
+                    /* Lastline, break out at end of loop. GophermapContents.Render() will
+                     * append a LastLine string so we don't have to worry about that here.
                      */
                     return false
 
                 case TypeEndBeginList:
-                    /* Create GophermapDirListing object then break out at end of loop */
-                    dirRequest := &Request{ NewRequestPath(request.RootDir(), request.PathTrimRelSuffix(GophermapFileStr)), request.Parameters }
+                    /* Append GophermapDirectorySection object then break, as with TypeEnd. */
+                    dirRequest := NewRequestPath(path.RootDir(), path.TrimRelSuffix(GophermapFileStr))
                     sections = append(sections, &GophermapDirectorySection{ dirRequest, hidden })
                     return false
 
                 default:
-                    /* Just append to sections slice as gophermap text */
+                    /* Default is appending to sections slice as GopherMapTextSection */
                     sections = append(sections, &GophermapTextSection{ []byte(line+DOSLineEnd) })
             }
 
@@ -302,11 +298,12 @@ func readGophermap(request *Request) ([]GophermapSection, *GophorError) {
     return sections, nil
 }
 
+/* Read a text file into a gophermap as text sections */
 func readIntoGophermap(path string) ([]byte, *GophorError) {
     /* Create return slice */
     fileContents := make([]byte, 0)
 
-    /* Perform buffered scan with our supplied splitter and iterators */
+    /* Perform buffered scan with our supplied iterator */
     gophorErr := bufferedScan(path,
         func(scanner *bufio.Scanner) bool {
             line := scanner.Text()
@@ -316,10 +313,10 @@ func readIntoGophermap(path string) ([]byte, *GophorError) {
                 return true
             }
 
-            /* Replace the newline character */
+            /* Replace the newline characters */
             line = replaceNewLines(line)
 
-            /* Iterate through returned str, reflowing to new line
+            /* Iterate through line string, reflowing to new line
              * until all lines < PageWidth
              */
             for len(line) > 0 {
@@ -345,6 +342,7 @@ func readIntoGophermap(path string) ([]byte, *GophorError) {
     return fileContents, nil
 }
 
+/* Return minimum width out of PageWidth and W */
 func minWidth(w int) int {
     if w <= Config.PageWidth {
         return w

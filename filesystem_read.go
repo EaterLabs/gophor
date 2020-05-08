@@ -80,6 +80,7 @@ func bufferedScan(path string, scanIterator func(*bufio.Scanner) bool) *GophorEr
     return nil
 }
 
+/* Split on DOS line end */
 func dosLineEndSplitter(data []byte, atEOF bool) (advance int, token []byte, err error) {
     if atEOF && len(data) == 0  {
         /* At EOF, no more data */
@@ -95,6 +96,7 @@ func dosLineEndSplitter(data []byte, atEOF bool) (advance int, token []byte, err
     return 0, nil, nil
 }
 
+/* Split on unix line end */
 func unixLineEndSplitter(data []byte, atEOF bool) (advance int, token []byte, err error) {
     if atEOF && len(data) == 0  {
         /* At EOF, no more data */
@@ -110,19 +112,43 @@ func unixLineEndSplitter(data []byte, atEOF bool) (advance int, token []byte, er
     return 0, nil, nil
 }
 
+/* List the files in directory, hiding those requested, including title and footer */
+func listDirAsGophermap(responder *Responder, hidden map[string]bool) *GophorError {
+    /* Write title */
+    gophorErr := responder.Write(append(buildLine(TypeInfo, "[ "+responder.Host.Name()+responder.Request.Path.Selector()+" ]", "TITLE", NullHost, NullPort), buildInfoLine("")...))
+    if gophorErr != nil {
+        return gophorErr
+    }
+
+    /* Writer a 'back' entry. GoLang Readdir() seems to miss this */
+    gophorErr = responder.Write(buildLine(TypeDirectory, "..", responder.Request.Path.JoinSelector(".."), responder.Host.Name(), responder.Host.Port()))
+    if gophorErr != nil {
+        return gophorErr
+    }
+
+    /* Write the actual directory entry */
+    gophorErr = listDir(responder, hidden)
+    if gophorErr != nil {
+        return gophorErr
+    }
+
+    /* Finally write footer */
+    return responder.WriteFlush(Config.FooterText)
+}
+
 /* List the files in a directory, hiding those requested */
-func listDir(responder *Responder, hidden map[string]bool, includeTitleFooter bool) *GophorError {
+func listDir(responder *Responder, hidden map[string]bool) *GophorError {
     /* Open directory file descriptor */
-    fd, err := os.Open(responder.Request.AbsPath())
+    fd, err := os.Open(responder.Request.Path.Absolute())
     if err != nil {
-        Config.SysLog.Error("", "failed to open %s: %s\n", responder.Request.AbsPath(), err.Error())
+        Config.SysLog.Error("", "failed to open %s: %s\n", responder.Request.Path.Absolute(), err.Error())
         return &GophorError{ FileOpenErr, err }
     }
 
     /* Read files in directory */
     files, err := fd.Readdir(-1)
     if err != nil {
-        Config.SysLog.Error("", "failed to enumerate dir %s: %s\n", responder.Request.AbsPath(), err.Error())
+        Config.SysLog.Error("", "failed to enumerate dir %s: %s\n", responder.Request.Path.Absolute(), err.Error())
         return &GophorError{ DirListErr, err }
     }
     
@@ -132,19 +158,10 @@ func listDir(responder *Responder, hidden map[string]bool, includeTitleFooter bo
     /* Create directory content slice, ready */
     dirContents := make([]byte, 0)
 
-    /* First add a title + a space */
-    if includeTitleFooter {
-        dirContents = append(dirContents, buildLine(TypeInfo, "[ "+responder.Host.Name()+responder.Request.SelectorPath()+" ]", "TITLE", NullHost, NullPort)...)
-        dirContents = append(dirContents, buildInfoLine("")...)
-
-        /* Add a 'back' entry. GoLang Readdir() seems to miss this */
-        dirContents = append(dirContents, buildLine(TypeDirectory, "..", responder.Request.PathJoinSelector(".."), responder.Host.Name(), responder.Host.Port())...)
-    }
-
     /* Walk through files :D */
     var reqPath *RequestPath
     for _, file := range files {
-        reqPath = NewRequestPath(responder.Request.RootDir(), file.Name())
+        reqPath = NewRequestPath(responder.Request.Path.RootDir(), file.Name())
 
         /* If hidden file, or restricted file, continue! */
         if isHiddenFile(hidden, reqPath.Relative()) || isRestrictedFile(reqPath.Relative()) {
@@ -171,14 +188,11 @@ func listDir(responder *Responder, hidden map[string]bool, includeTitleFooter bo
         }
     }
 
-    if includeTitleFooter {
-        dirContents = append(dirContents, Config.FooterText...)
-    }
-
-    /* Append the footer (including lastline), write and flush! */
-    return responder.WriteFlush(dirContents)
+    /* Finally write dirContents and return result */
+    return responder.Write(dirContents)
 }
 
+/* Helper function to simple checking in map */
 func isHiddenFile(hiddenMap map[string]bool, fileName string) bool {
     _, ok := hiddenMap[fileName]
     return ok

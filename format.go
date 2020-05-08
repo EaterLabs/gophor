@@ -91,6 +91,8 @@ var FileExtMap = map[string]ItemType{
     ".msi":          TypeBin,
     ".exe":          TypeBin,
 
+    ".gophermap":    TypeDirectory,
+
     ".lz":           TypeBinArchive,
     ".gz":           TypeBinArchive,
     ".bz2":          TypeBinArchive,

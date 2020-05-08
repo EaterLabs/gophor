@@ -46,8 +46,7 @@ func (fm *FixedMap) Get(key string) *File {
     }
 }
 
-/* Put file in map as key, pushing out last file
- * if size limit reached */
+/* Put file in map as key, pushing out last file if size limit reached */
 func (fm *FixedMap) Put(key string, value *File) {
     element := fm.List.PushFront(key)
     fm.Map[key] = &MapElement{ element, value }

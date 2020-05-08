@@ -31,10 +31,10 @@ func cachePolicyFiles(rootDir, description, admin, geoloc string) {
         Config.SysLog.Info("", "Generated policy file: %s\n", rootDir+"/"+CapsTxtStr)
     }
 
-    /* See if caps txt exists, if not generate */
+    /* See if robots txt exists, if not generate */
     _, err = os.Stat(rootDir+"/"+RobotsTxtStr)
     if err != nil {
-        /* We need to generate the caps txt and manually load into cache */
+        /* We need to generate the robots txt and manually load into cache */
         content := generateRobotsTxt()
 
         /* Create new file object from generated file contents */

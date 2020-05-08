@@ -28,7 +28,6 @@ const (
     InvalidGophermapErr   ErrorCode = iota
 
     /* Executing */
-    BufferReadErr         ErrorCode = iota
     CommandStartErr       ErrorCode = iota
     CommandExitCodeErr    ErrorCode = iota
     CgiOutputErr          ErrorCode = iota
@@ -83,13 +82,9 @@ func (e *GophorError) Error() string {
 
         case InvalidRequestErr:
             str = "invalid request data"
-        case EmptyItemTypeErr:
-            str = "line string provides no dir entity type"
         case InvalidGophermapErr:
             str = "invalid gophermap"
 
-        case BufferReadErr:
-            str = "buffer read fail"
         case CommandStartErr:
             str = "command start fail"
         case CgiOutputErr:
@@ -141,13 +136,9 @@ func gophorErrorToResponseCode(code ErrorCode) ErrorResponseCode {
 
         case InvalidRequestErr:
             return ErrorResponse400
-        case EmptyItemTypeErr:
-            return ErrorResponse500
         case InvalidGophermapErr:
             return ErrorResponse500
 
-        case BufferReadErr:
-            return ErrorResponse500
         case CommandStartErr:
             return ErrorResponse500
         case CommandExitCodeErr:

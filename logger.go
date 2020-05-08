@@ -143,8 +143,8 @@ func NewLoggerToFile(path string, logFlags int) *log.Logger {
     return log.New(writer, "", logFlags)
 }
 
+/* Set the default logger flags before printing version */
 func printVersionExit() {
-    /* Set the default logger flags before printing version */
     log.SetFlags(0)
     log.Printf("%s\n", GophorVersion)
     os.Exit(0)
