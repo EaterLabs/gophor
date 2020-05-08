@@ -161,7 +161,7 @@ func listDir(responder *Responder, hidden map[string]bool) *GophorError {
     /* Walk through files :D */
     var reqPath *RequestPath
     for _, file := range files {
-        reqPath = NewRequestPath(responder.Request.Path.RootDir(), file.Name())
+        reqPath = NewRequestPath(responder.Request.Path.RootDir(), responder.Request.Path.JoinRel(file.Name()))
 
         /* If hidden file, or restricted file, continue! */
         if isHiddenFile(hidden, reqPath.Relative()) || isRestrictedFile(reqPath.Relative()) {
