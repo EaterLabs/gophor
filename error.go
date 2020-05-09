@@ -173,7 +173,9 @@ func generateGopherErrorResponse(code ErrorResponseCode) []byte {
 func (e ErrorResponseCode) String() string {
     switch e {
         case ErrorResponse200:
-            return "200 OK"
+            /* Should not have reached here */
+            Config.SysLog.Fatal("", "Passed error response 200 to error handler, SHOULD NOT HAVE DONE THIS\n")
+            return ""
         case ErrorResponse400:
             return "400 Bad Request"
         case ErrorResponse401:

@@ -86,7 +86,7 @@ func (r *Responder) CloneWithRequest(request *Request) *Responder {
     }
 }
 
-type SkipPrefixWriter struct {
+type HttpStripWriter struct {
     /* Wrapper to bufio writer that allows read up to
      * some predefined prefix into a buffer, then continuing
      * write to expected writer destination either after prefix
@@ -101,108 +101,185 @@ type SkipPrefixWriter struct {
      */
     WriteFunc  func([]byte) (int, error)
 
-    SkipUpTo   []byte
     SkipBuffer []byte
-    Available  int
-
-    ShouldWriteSkipped func([]byte) bool
+    SkipIndex  int
 }
 
-func NewSkipPrefixWriter(writer *bufio.Writer, skipUpTo []byte, shouldWriteSkipped func(data []byte) bool) *SkipPrefixWriter {
-    w := &SkipPrefixWriter{}
+func NewHttpStripWriter(writer *bufio.Writer) *HttpStripWriter {
+    w := &HttpStripWriter{}
     w.Writer = writer
-    w.WriteFunc = w.WriteCheckSkip
-    w.SkipUpTo = skipUpTo
+    w.WriteFunc = w.WriteCheckForHeaders
     w.SkipBuffer = make([]byte, Config.SkipPrefixBufSize)
-    w.ShouldWriteSkipped = shouldWriteSkipped
-    w.Available = Config.SkipPrefixBufSize
+    w.SkipIndex = 0
     return w
 }
 
-func (w *SkipPrefixWriter) AddToSkipBuffer(data []byte) int {
-    /* Add as much data as we can to the skip buffer */
-    if len(data) >= w.Available {
-        toAdd := w.Available
-        w.SkipBuffer = append(w.SkipBuffer, data[:toAdd]...)
-        w.Available = 0
-        return toAdd
-    } else {
-        w.SkipBuffer = append(w.SkipBuffer, data...)
-        w.Available -= len(data)
-        return len(data)
-    }
+func (w *HttpStripWriter) Size() int {
+    return len(w.SkipBuffer)
 }
 
-func (w *SkipPrefixWriter) Write(data []byte) (int, error) {
+func (w *HttpStripWriter) Available() int {
+    return w.Size() - w.SkipIndex
+}
+
+func (w *HttpStripWriter) AddToSkipBuffer(data []byte) int {
+    toAdd := w.Available()
+    if len(data) < toAdd {
+        toAdd = len(data)
+    }
+
+    copy(w.SkipBuffer[w.SkipIndex:], data[:toAdd])
+    w.SkipIndex += toAdd
+    return toAdd
+}
+
+
+func (w *HttpStripWriter) ParseHttpHeaderSection() (bool, ErrorResponseCode) {
+    /* Check if this is a valid HTTP header section and check status code */
+    validHeaderSection := false
+    statusCode := ErrorResponse200
+    for _, header := range bytes.Split(w.SkipBuffer, []byte(DOSLineEnd)) {
+        header = bytes.ToLower(header)
+
+        if bytes.Contains(header, []byte("content-type: ")) {
+            /* This whole header section is now _valid_ */
+            validHeaderSection = true
+        } else if bytes.Contains(header, []byte("status: ")) {
+            /* Try parse status code */
+            statusStr := bytes.Split(bytes.TrimPrefix(header, []byte("status: ")), []byte(" "))[0]
+            switch string(statusStr) {
+                case "200":
+                    statusCode = ErrorResponse200
+                case "400":
+                    statusCode = ErrorResponse400
+                case "401":
+                    statusCode = ErrorResponse401
+                case "403":
+                    statusCode = ErrorResponse403
+                case "404":
+                    statusCode = ErrorResponse404
+                case "408":
+                    statusCode = ErrorResponse408
+                case "410":
+                    statusCode = ErrorResponse410
+                case "500":
+                    statusCode = ErrorResponse500
+                case "501":
+                    statusCode = ErrorResponse501
+                case "503":
+                    statusCode = ErrorResponse503
+                default:
+                    statusCode = ErrorResponse500
+            }
+        }
+    }
+    return validHeaderSection, statusCode
+}
+
+func (w *HttpStripWriter) WriteSkipBuffer() (bool, error) {
+    defer func() {
+        w.SkipIndex = 0
+    }()
+
+    /* First try parse the headers, determine what to do next */
+    validHeaderSection, statusCode := w.ParseHttpHeaderSection()
+
+    if validHeaderSection {
+        /* Contains valid HTTP headers, if anything other than 200 statusCode we write error and return nil */
+        if statusCode != ErrorResponse200 {
+            /* Non-200 status code. Try send error response bytes and return with false (don't continue) */
+            _, err := w.Writer.Write(generateGopherErrorResponse(statusCode))
+            return false, err
+        } else {
+            /* Status code all good, we just return a true (do continue) */
+            return true, nil
+        }
+    }
+
+    /* Default is just write skip buffer contents */
+    _, err := w.Writer.Write(w.SkipBuffer[:w.SkipIndex])
+    return true, err
+}
+
+func (w *HttpStripWriter) FlushSkipBuffer() error {
+    /* If SkipBuffer non-nil and has contents, make sure this is written!
+     * This happens if caller to Write has supplied content length < w.Size().
+     * This MUST be called.
+     */
+
+    if w.SkipIndex > 0 {
+        _, err := w.WriteSkipBuffer()
+        return err
+    }
+
+    return nil
+}
+
+
+func (w *HttpStripWriter) Write(data []byte) (int, error) {
+    /* Write using whatever write function is currently set */
     return w.WriteFunc(data)
 }
 
-func (w *SkipPrefixWriter) WriteRegular(data []byte) (int, error) {
+func (w *HttpStripWriter) WriteRegular(data []byte) (int, error) {
+    /* Regular write function */
     return w.Writer.Write(data)
 }
 
-func (w *SkipPrefixWriter) WriteCheckSkip(data []byte) (int, error) {
-    split := bytes.Split(data, w.SkipUpTo)
+func (w *HttpStripWriter) WriteCheckForHeaders(data []byte) (int, error) {
+    split := bytes.Split(data, []byte(DOSLineEnd+DOSLineEnd))
     if len(split) == 1 {
         /* Try add these to skip buffer */
         added := w.AddToSkipBuffer(data)
 
         if added < len(data) {
             defer func() {
+                /* Having written skipbuffer after this if clause, set write to regular */
                 w.WriteFunc = w.WriteRegular
             }()
 
-            /* Write contents of skip buffer */
-            _, err := w.Writer.Write(w.SkipBuffer)
-            if err != nil {
-                /* We return 0 here as if failed here our count is massively off anyways */
-                return 0, err
+            doContinue, err := w.WriteSkipBuffer()
+            if !doContinue {
+                /* If we shouldn't continue, return 'added' and unexpect EOF error */
+                return added, io.ErrUnexpectedEOF
+            } else if err != nil {
+                /* If err not nil, return that we wrote up to 'added' and err */
+                return added, err
             }
 
             /* Write remaining data not added to skip buffer */
-            _, err = w.Writer.Write(data[added:])
+            count, err := w.Writer.Write(data[added:])
             if err != nil {
-                /* We return 0 here as if failed here our count is massively off anyways */
-                return 0, err
+                /* We return added+count */
+                return added+count, err
             }
         }
 
         return len(data), nil
     } else {
         defer func() {
+            /* No use for skip buffer after this clause, set write to regular */
             w.WriteFunc = w.WriteRegular
+            w.SkipIndex = 0
         }()
 
         /* Try add what we can to skip buffer */
-        added := w.AddToSkipBuffer(append(split[0], w.SkipUpTo...))
+        added := w.AddToSkipBuffer(append(split[0], []byte(DOSLineEnd+DOSLineEnd)...))
 
-        /* Check if we should write contents of skip buffer */
-        if !w.ShouldWriteSkipped(w.SkipBuffer) {
-            /* Skip empty data remaining */
-            if added >= len(data)-1 {
-                return len(data), nil
-            }
+        doContinue, err := w.WriteSkipBuffer()
+        if !doContinue {
+            /* If we shouldn't continue, return 'added' and unexpect EOF error */
+            return added, io.ErrUnexpectedEOF
+        } else if err != nil {
+            /* If err not nil, return that we wrote up to 'added' and err */
+            return added, err
+        }
 
-            /* Write from index = added */
-            count, err := w.Writer.Write(data[added:])
-            if err != nil {
-                /* Failed, return added+count as write count*/
-                return added+count, err
-            }
-        } else {
-            /* We write skip buffer contents */
-            count, err := w.Writer.Write(w.SkipBuffer)
-            if err != nil {
-                /* Failed, assume write up to added */
-                return added, err
-            }
-
-            /* Now write remaining */
-            count, err = w.Writer.Write(data[added:])
-            if err != nil {
-                /* Failed, return count from added */
-                return added+count, err
-            }
+        /* Write remaining data not added to skip buffer */
+        count, err := w.Writer.Write(data[added:])
+        if err != nil {
+            /* We return added+count */
+            return added+count, err
         }
 
         return len(data), nil

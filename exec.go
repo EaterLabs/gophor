@@ -4,7 +4,6 @@ import (
     "os/exec"
     "syscall"
     "strconv"
-    "bytes"
     "time"
     "io"
 )
@@ -70,22 +69,22 @@ func executeCgi(responder *Responder) *GophorError {
       * \r\n\r\n
       * Then checks if it contains a valid 'content-type:' header, if so it strips these.
       */
-     skipPrefixWriter := NewSkipPrefixWriter(
-         responder.Writer,
-         []byte(DOSLineEnd+DOSLineEnd),
-         func(skipBuffer []byte) bool {
-             for _, header := range bytes.Split(skipBuffer, []byte(DOSLineEnd)) {
-                 header = bytes.ToLower(header)
-                 if bytes.Contains(header, []byte("content-type:")) {
-                     return false
-                 }
-             }
-             return true
-         },
-    )
+    httpStripWriter := NewHttpStripWriter(responder.Writer)
 
-    /* Execute the CGI script using the new SkipPrefixWriter and above environment */
-    return execute(skipPrefixWriter, cgiEnv, responder.Request.Path.Absolute(), nil)
+    /* Execute the CGI script using the new SkipBufferedWriter and above environment */
+    gophorErr := execute(httpStripWriter, cgiEnv, responder.Request.Path.Absolute(), nil)
+    if gophorErr != nil {
+        /* Error, return :( */
+        return gophorErr
+    } else {
+        /* Returned execute() fine, perform skip buffer flush. */
+        err := httpStripWriter.FlushSkipBuffer()
+        if err != nil {
+            return &GophorError{ BufferedWriteFlushErr, err }
+        } else {
+            return nil
+        }
+    }
 }
 
 /* Execute any file (though only allowed are gophermaps) */
