@@ -34,6 +34,18 @@ const (
     CgiDisabledErr        ErrorCode = iota
     RestrictedCommandErr  ErrorCode = iota
 
+    /* Wrapping CGI http status codes */
+    CgiStatus400Err       ErrorCode = iota
+    CgiStatus401Err       ErrorCode = iota
+    CgiStatus403Err       ErrorCode = iota
+    CgiStatus404Err       ErrorCode = iota
+    CgiStatus408Err       ErrorCode = iota
+    CgiStatus410Err       ErrorCode = iota
+    CgiStatus500Err       ErrorCode = iota
+    CgiStatus501Err       ErrorCode = iota
+    CgiStatus503Err       ErrorCode = iota
+    CgiStatusUnknownErr   ErrorCode = iota
+
     /* Error Response Codes */
     ErrorResponse200 ErrorResponseCode = iota
     ErrorResponse400 ErrorResponseCode = iota
@@ -96,6 +108,27 @@ func (e *GophorError) Error() string {
         case RestrictedCommandErr:
             str = "command use restricted"
 
+        case CgiStatus400Err:
+            str = "CGI script error status 400"
+        case CgiStatus401Err:
+            str = "CGI script error status 401"
+        case CgiStatus403Err:
+            str = "CGI script error status 403"
+        case CgiStatus404Err:
+            str = "CGI script error status 404"
+        case CgiStatus408Err:
+            str = "CGI script error status 408"
+        case CgiStatus410Err:
+            str = "CGI script error status 410"
+        case CgiStatus500Err:
+            str = "CGI script error status 500"
+        case CgiStatus501Err:
+            str = "CGI script error status 501"
+        case CgiStatus503Err:
+            str = "CGI script error status 503"
+        case CgiStatusUnknownErr:
+            str = "CGI script error unknown status code"
+
         default:
             str = "Unknown"
     }
@@ -148,6 +181,27 @@ func gophorErrorToResponseCode(code ErrorCode) ErrorResponseCode {
         case CgiDisabledErr:
             return ErrorResponse404
         case RestrictedCommandErr:
+            return ErrorResponse500
+
+        case CgiStatus400Err:
+            return ErrorResponse400
+        case CgiStatus401Err:
+            return ErrorResponse401
+        case CgiStatus403Err:
+            return ErrorResponse403
+        case CgiStatus404Err:
+            return ErrorResponse404
+        case CgiStatus408Err:
+            return ErrorResponse408
+        case CgiStatus410Err:
+            return ErrorResponse410
+        case CgiStatus500Err:
+            return ErrorResponse500
+        case CgiStatus501Err:
+            return ErrorResponse501
+        case CgiStatus503Err:
+            return ErrorResponse503
+        case CgiStatusUnknownErr:
             return ErrorResponse500
 
         default:

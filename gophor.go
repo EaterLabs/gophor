@@ -97,6 +97,7 @@ func setupServer() []*GophorListener {
 
     /* Exec settings */
     disableCgi         := flag.Bool("disable-cgi", false, "Disable CGI and all executable support.")
+    httpCompatCgi      := flag.Bool("http-compat-cgi", false, "Enable using HTTP CGI scripts (will strip headers).")
     safeExecPath       := flag.String("safe-path", "/usr/bin:/bin", "Set safe PATH variable to be used when executing CGI scripts, gophermaps and inline shell commands.")
     maxExecRunTime     := flag.Duration("max-exec-time", time.Second*3, "Change max executable CGI, gophermap and inline shell command runtime.")
 
@@ -136,12 +137,19 @@ func setupServer() []*GophorListener {
 
     /* Set CGI support status */
     if *disableCgi {
-        Config.SysLog.Info("", "CGI support disabled")
+        Config.SysLog.Info("", "CGI support disabled\n")
         Config.CgiEnabled = false
     } else {
         /* Enable CGI */
-        Config.SysLog.Info("", "CGI support enabled")
+        Config.SysLog.Info("", "CGI support enabled\n")
         Config.CgiEnabled = true
+
+        if *httpCompatCgi {
+            Config.SysLog.Info("", "Enabling HTTP CGI script compatibility\n")
+            executeCgi = executeCgiStripHttp
+        } else {
+            executeCgi = executeCgiNoHttp
+        }
 
         /* Set safe executable path and setup environments */
         Config.SysLog.Info("", "Setting safe executable path: %s\n", *safeExecPath)

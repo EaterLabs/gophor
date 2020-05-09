@@ -32,13 +32,13 @@ func setupInitialCgiEnviron(path string) []string {
     }
 }
 
-/* Execute a CGI script */
-func executeCgi(responder *Responder) *GophorError {
+/* Generate CGI environment */
+func generateCgiEnvironment(responder *Responder) []string {
     /* Get initial CgiEnv variables */
-    cgiEnv := Config.CgiEnv
-    cgiEnv = append(cgiEnv, envKeyValue("SERVER_NAME",     responder.Host.Name())) /* MUST be set to name of server host client is connecting to */
-    cgiEnv = append(cgiEnv, envKeyValue("SERVER_PORT",     responder.Host.Port())) /* MUST be set to the server port that client is connecting to */
-    cgiEnv = append(cgiEnv, envKeyValue("REMOTE_ADDR",     responder.Client.Ip())) /* Remote client addr, MUST be set */
+    env := Config.CgiEnv
+    env = append(env, envKeyValue("SERVER_NAME",     responder.Host.Name())) /* MUST be set to name of server host client is connecting to */
+    env = append(env, envKeyValue("SERVER_PORT",     responder.Host.Port())) /* MUST be set to the server port that client is connecting to */
+    env = append(env, envKeyValue("REMOTE_ADDR",     responder.Client.Ip())) /* Remote client addr, MUST be set */
 
     /* We store the query string in Parameters[0]. Ensure we git without initial delimiter */
     var queryString string
@@ -47,43 +47,38 @@ func executeCgi(responder *Responder) *GophorError {
     } else {
         queryString = responder.Request.Parameters[0]
     }
-    cgiEnv = append(cgiEnv, envKeyValue("QUERY_STRING",    queryString))                     /* URL encoded search or parameter string, MUST be set even if empty */
-    cgiEnv = append(cgiEnv, envKeyValue("SCRIPT_NAME",     "/"+responder.Request.Path.Relative())) /* URI path (not URL encoded) which could identify the CGI script (rather than script's output) */
-    cgiEnv = append(cgiEnv, envKeyValue("SCRIPT_FILENAME", responder.Request.Path.Absolute()))     /* Basically SCRIPT_NAME absolute path */
-    cgiEnv = append(cgiEnv, envKeyValue("SELECTOR",        responder.Request.Path.Selector()))
-    cgiEnv = append(cgiEnv, envKeyValue("DOCUMENT_ROOT",   responder.Request.Path.RootDir()))
-    cgiEnv = append(cgiEnv, envKeyValue("REQUEST_URI",     "/"+responder.Request.Path.Relative()+responder.Request.Parameters[0]))
+    env = append(env, envKeyValue("QUERY_STRING",    queryString))                     /* URL encoded search or parameter string, MUST be set even if empty */
+    env = append(env, envKeyValue("SCRIPT_NAME",     "/"+responder.Request.Path.Relative())) /* URI path (not URL encoded) which could identify the CGI script (rather than script's output) */
+    env = append(env, envKeyValue("SCRIPT_FILENAME", responder.Request.Path.Absolute()))     /* Basically SCRIPT_NAME absolute path */
+    env = append(env, envKeyValue("SELECTOR",        responder.Request.Path.Selector()))
+    env = append(env, envKeyValue("DOCUMENT_ROOT",   responder.Request.Path.RootDir()))
+    env = append(env, envKeyValue("REQUEST_URI",     "/"+responder.Request.Path.Relative()+responder.Request.Parameters[0]))
 
-    /* Fuck it. For now, we don't support PATH_INFO. It's a piece of shit variable */
-//    cgiEnv = append(cgiEnv, envKeyValue("PATH_INFO",       responder.Parameters[0])) /* Sub-resource to be fetched by script, derived from path hierarch portion of URI. NOT URL encoded */
-//    cgiEnv = append(cgiEnv, envKeyValue("PATH_TRANSLATED", responder.AbsPath()))     /* Take PATH_INFO, parse as local URI and append root dir */
+    return env
+}
 
-/* We ignore these due to just CBA and we're not implementing authorization yet */
-//    cgiEnv = append(cgiEnv, envKeyValue("AUTH_TYPE",       "")) /* Any method used my server to authenticate user, MUST be set if auth'd */
-//    cgiEnv = append(cgiEnv, envKeyValue("CONTENT_TYPE",    "")) /* Only a MUST if HTTP content-type set (so never for gopher) */
-//    cgiEnv = append(cgiEnv, envKeyValue("REMOTE_IDENT",    "")) /* Remote client identity information */
-//    cgiEnv = append(cgiEnv, envKeyValue("REMOTE_HOST",     "")) /* Remote client domain name */
-//    cgiEnv = append(cgiEnv, envKeyValue("REMOTE_USER",     "")) /* Remote user ID, if AUTH_TYPE, MUST be set */
+/* Execute a CGI script (pointer to correct function) */
+var executeCgi func(*Responder) *GophorError
 
-     /* Create nwe SkipPrefixwriter from underlying response writer set to skip up to:
-      * \r\n\r\n
-      * Then checks if it contains a valid 'content-type:' header, if so it strips these.
-      */
+/* Execute CGI script and serve as-is */
+func executeCgiNoHttp(responder *Responder) *GophorError {
+    return execute(responder.Writer, generateCgiEnvironment(responder), responder.Request.Path.Absolute(), nil)
+}
+
+/* Execute CGI script and strip HTTP headers */
+func executeCgiStripHttp(responder *Responder) *GophorError {
+    /* HTTP header stripping writer that also parses HTTP status codes */
     httpStripWriter := NewHttpStripWriter(responder.Writer)
 
-    /* Execute the CGI script using the new SkipBufferedWriter and above environment */
-    gophorErr := execute(httpStripWriter, cgiEnv, responder.Request.Path.Absolute(), nil)
-    if gophorErr != nil {
-        /* Error, return :( */
-        return gophorErr
+    /* Execute the CGI script using the new httpStripWriter */
+    gophorErr := execute(httpStripWriter, generateCgiEnvironment(responder), responder.Request.Path.Absolute(), nil)
+
+    /* httpStripWriter's error takes priority as it might have parsed the status code */
+    cgiStatusErr := httpStripWriter.FinishUp()
+    if cgiStatusErr != nil {
+        return cgiStatusErr
     } else {
-        /* Returned execute() fine, perform skip buffer flush. */
-        err := httpStripWriter.FlushSkipBuffer()
-        if err != nil {
-            return &GophorError{ BufferedWriteFlushErr, err }
-        } else {
-            return nil
-        }
+        return gophorErr
     }
 }
 
@@ -157,9 +152,13 @@ func execute(writer io.Writer, env []string, path string, args []string) *Gophor
     exitCode := 0
     if err != nil {
         /* Error, try to get exit code */
-        exitError, _ := err.(*exec.ExitError)
-        waitStatus   := exitError.Sys().(syscall.WaitStatus)
-        exitCode      = waitStatus.ExitStatus()
+        exitError, ok := err.(*exec.ExitError)
+        if ok {
+            waitStatus := exitError.Sys().(syscall.WaitStatus)
+            exitCode = waitStatus.ExitStatus()
+        } else {
+            exitCode = 1
+        }
     } else {
         /* No error! Get exit code direct from command */
         waitStatus := cmd.ProcessState.Sys().(syscall.WaitStatus)
