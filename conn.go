@@ -7,8 +7,8 @@ import (
 )
 
 const (
-    SocketReadTimeout  = time.Second
-    SocketWriteTimeout = time.Second
+    SocketReadTimeout  = 5*time.Second
+    SocketWriteTimeout = 10*time.Second
 )
 
 type ConnHost struct {
