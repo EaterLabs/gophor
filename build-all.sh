@@ -9,7 +9,7 @@ LOGFILE='build.log'
 OUTDIR="build-${VERSION}"
 
 silent() {
-    "$@" > "$LOGFILE" 2>&1
+    "$@" >> "$LOGFILE" 2>&1
 }
 
 build_for() {
@@ -38,6 +38,9 @@ echo "PLEASE BE WARNED THIS SCRIPT IS WRITTEN FOR A VOID LINUX (MUSL) BUILD ENVI
 echo "YOUR CC TOOLCHAIN LOCATIONS MAY DIFFER"
 echo "IF THE SCRIPT FAILS, CHECK THE OUTPUT OF: ${LOGFILE}"
 echo ""
+
+# Clean logfile
+rm -f "$LOGFILE"
 
 # Clean and recreate directory
 rm -rf "$OUTDIR"
