@@ -11,7 +11,7 @@ import (
 )
 
 const (
-    GophorVersion = "0.7-beta-PR1"
+    GophorVersion = "1.0-alpha-PR1"
 )
 
 var (
