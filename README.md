@@ -114,6 +114,10 @@ gophor [args]
        -geoloc              Change geolocation in generated caps.txt.
 
        -disable-cgi         Disable CGI and all executable support.
+       -http-compat-cgi     Enable HTTP CGI script compatibility (will strip
+                            HTTP headers).
+       -http-header-buf     Change max CGI read count to look for and strip
+                            HTTP headers before sending raw (bytes).
        -safe-path           Set safe PATH variable to be used when executing
                             CGI scripts, gophermaps and inline shell
                             commands.
@@ -124,8 +128,6 @@ gophor [args]
        -socket-read-buf     Change socket read buffer size (bytes).
        -socket-read-max     Change socket read count max (integer multiplier
                             to socket-read-buf-max).
-       -cgi-header-max      Change max CGI read count to look for and strip
-                            HTTP headers before sending raw (bytes).
        -file-read-buf       Change file read buffer size (bytes).
 
        -version             Print version string.
