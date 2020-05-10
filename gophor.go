@@ -97,7 +97,8 @@ func setupServer() []*GophorListener {
 
     /* Exec settings */
     disableCgi         := flag.Bool("disable-cgi", false, "Disable CGI and all executable support.")
-    httpCompatCgi      := flag.Bool("http-compat-cgi", false, "Enable using HTTP CGI scripts (will strip headers).")
+    httpCompatCgi      := flag.Bool("http-compat-cgi", false, "Enable HTTP CGI script compatibility (will strip HTTP headers).")
+    httpHeaderBuf      := flag.Int("http-header-buf", 4096, "Change max CGI read count to look for and strip HTTP headers before sending raw (bytes).")
     safeExecPath       := flag.String("safe-path", "/usr/bin:/bin", "Set safe PATH variable to be used when executing CGI scripts, gophermaps and inline shell commands.")
     maxExecRunTime     := flag.Duration("max-exec-time", time.Second*3, "Change max executable CGI, gophermap and inline shell command runtime.")
 
@@ -105,7 +106,6 @@ func setupServer() []*GophorListener {
     socketWriteBuf     := flag.Int("socket-write-buf", 4096, "Change socket write buffer size (bytes).")
     socketReadBuf      := flag.Int("socket-read-buf", 256, "Change socket read buffer size (bytes).")
     socketReadMax      := flag.Int("socket-read-max", 8, "Change socket read count max (integer multiplier socket-read-buf-max)")
-    skipPrefixBuf      := flag.Int("cgi-header-max", 4096, "Change max CGI read count to look for and strip HTTP headers before sending raw (bytes).")
     fileReadBuf        := flag.Int("file-read-buf", 4096, "Change file read buffer size (bytes).")
 
     /* Version string */
@@ -147,6 +147,10 @@ func setupServer() []*GophorListener {
         if *httpCompatCgi {
             Config.SysLog.Info("", "Enabling HTTP CGI script compatibility\n")
             executeCgi = executeCgiStripHttp
+
+            /* Specific to CGI buffer */
+            Config.SysLog.Info("", "Max CGI HTTP header read-ahead: %d bytes\n", *httpHeaderBuf)
+            Config.SkipPrefixBufSize = *httpHeaderBuf
         } else {
             executeCgi = executeCgiNoHttp
         }
@@ -159,10 +163,6 @@ func setupServer() []*GophorListener {
         /* Set executable watchdog */
         Config.SysLog.Info("", "Max executable time: %s\n", *maxExecRunTime)
         Config.MaxExecRunTime = *maxExecRunTime
-
-        /* Specific to CGI buffer */
-        Config.SysLog.Info("", "Max CGI HTTP header read-ahead: %d bytes\n", *skipPrefixBuf)
-        Config.SkipPrefixBufSize = *skipPrefixBuf
     }
 
     /* If running as root, get ready to drop privileges */
