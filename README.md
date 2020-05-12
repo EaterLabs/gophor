@@ -27,8 +27,8 @@ WARNING: the development branch is filled with lava, fear and capitalism.
 
 - Executable gophermap support.
 
-- Insert files with automated line reflowing, inline shell scripts and the
-  output of any CGI script or other executable gophermaps.
+- Insert files with automated line reflowing, and the output of any CGI
+  scripts or other executable gophermaps.
 
 - Support for all commonly accepted item type characters (beyond just
   RFC1436 support).
@@ -106,8 +106,6 @@ gophor [args]
        -restrict-files      New-line separated list of regex statements
                             (checked against absolute paths) restricting
                             file access.
-       -restricted-commands New-line separated list of regex statements
-                            restricting command access in gophermaps.
 
        -description         Change server description in generated caps.txt.
        -admin-email         Change admin email in generated caps.txt.
@@ -187,8 +185,8 @@ Type | Treat as | Meaning
  -   |     -    | [SERVER ONLY] Hide file/directory from directory listing
  *   |     -    | [SERVER ONLY] Last line + directory listing -- stop processing
      |          |               gophermap and end on a directory listing
- =   |     -    | [SERVER ONLY] Include or execute subgophermap, cgi-bin, regular
-     |          |               file or shell command stdout here
+ =   |     -    | [SERVER ONLY] Include or execute subgophermap, cgi-bin or regular
+     |          |               file here.
 ```
 
 # Compliance
@@ -311,13 +309,11 @@ Null port: `0`
 
 - Set default character encoding as US-ASCII
 
-- Handle CGI status codes
+- Move filesystem_read functions to FileSystem struct function
 
 - FastCGI support
 
 - Personal user gopherspaces
-
-- Remapping of file paths
 
 - Rotating logs
 
