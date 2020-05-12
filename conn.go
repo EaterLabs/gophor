@@ -6,11 +6,6 @@ import (
     "strconv"
 )
 
-const (
-    SocketReadTimeout  = 5*time.Second
-    SocketWriteTimeout = 10*time.Second
-)
-
 type ConnHost struct {
     /* Hold host specific details */
     HostName string
@@ -108,13 +103,13 @@ type DeadlineConn struct {
 
 func (c *DeadlineConn) Read(b []byte) (int, error) {
     /* Implements reader + updates deadline */
-    c.conn.SetReadDeadline(time.Now().Add(SocketReadTimeout))
+    c.conn.SetReadDeadline(time.Now().Add(Config.SocketReadDeadline))
     return c.conn.Read(b)
 }
 
 func (c *DeadlineConn) Write(b []byte) (int, error) {
     /* Implements writer + updates deadline */
-    c.conn.SetWriteDeadline(time.Now().Add(SocketWriteTimeout))
+    c.conn.SetWriteDeadline(time.Now().Add(Config.SocketWriteDeadline))
     return c.conn.Write(b)
 }
 

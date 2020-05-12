@@ -87,14 +87,6 @@ func executeFile(responder *Responder) *GophorError {
     return execute(responder.Writer, Config.Env, responder.Request.Path.Absolute(), responder.Request.Parameters)
 }
 
-/* Check command is not restricted then execute */
-func executeCommand(responder *Responder) *GophorError {
-    if isRestrictedCommand(responder.Request.Path.Absolute()) {
-        return &GophorError{ RestrictedCommandErr, nil }
-    }
-    return execute(responder.Writer, Config.Env, responder.Request.Path.Absolute(), responder.Request.Parameters)
-}
-
 /* Execute a supplied path with arguments and environment, to writer */
 func execute(writer io.Writer, env []string, path string, args []string) *GophorError {
     /* If CGI disbabled, just return error */

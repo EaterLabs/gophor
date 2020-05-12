@@ -4,6 +4,7 @@ import (
     "os"
     "sync"
     "time"
+    "regexp"
 )
 
 const (
@@ -23,8 +24,8 @@ type FileSystem struct {
     CacheMap     *FixedMap
     CacheMutex   sync.RWMutex
     CacheFileMax int64
-    Remap        map[string]string
-    ReverseRemap map[string]string
+    Remaps       []*FileRemap
+    Restricted   []*regexp.Regexp
 }
 
 func (fs *FileSystem) Init(size int, fileSizeMax float64) {
@@ -34,47 +35,68 @@ func (fs *FileSystem) Init(size int, fileSizeMax float64) {
     /* {,Reverse}Remap map is setup in `gophor.go`, no need to here */
 }
 
-func (fs *FileSystem) RemapRequestPath(requestPath *RequestPath) {
-    realPath, ok := fs.Remap[requestPath.Relative()]
-    if ok {
-        requestPath.RemapActual(realPath)
+func (fs *FileSystem) IsRestricted(path string) bool {
+    for _, regex := range fs.Restricted {
+        if regex.MatchString(path) {
+            return true
+        }
     }
+    return false
 }
 
-func (fs *FileSystem)ReverseRemapRequestPath(requestPath *RequestPath) {
-    virtualPath, ok := fs.ReverseRemap[requestPath.Relative()]
-    if ok {
-        requestPath.RemapVirtual(virtualPath)
+func (fs *FileSystem) RemapRequestPath(requestPath *RequestPath) (*RequestPath, bool) {
+    for _, remap := range fs.Remaps {
+        /* No match :( keep lookin */
+        if !remap.Regex.MatchString(requestPath.Relative()) {
+            continue
+        }
+
+        /* Create new path from template and submatches */
+        newPath := make([]byte, 0)
+        for _, submatches := range remap.Regex.FindAllStringSubmatchIndex(requestPath.Selector(), -1) {
+            newPath = remap.Regex.ExpandString(newPath, remap.Template, requestPath.Relative(), submatches)
+        }
+
+        /* Ignore empty replacement path */
+        if len(newPath) == 0 {
+            continue
+        }
+
+        /* Set this new path to the _actual_ path */
+        return requestPath.RemapPath(string(newPath)), true
     }
+
+    return nil, false
 }
 
 func (fs *FileSystem) HandleRequest(responder *Responder) *GophorError {
     /* Check if restricted file */
-    if isRestrictedFile(responder.Request.Path.Relative()) {
+    if fs.IsRestricted(responder.Request.Path.Relative()) {
         return &GophorError{ IllegalPathErr, nil }
     }
 
-    /* Remap RequestPath if necessary */
-    fs.RemapRequestPath(responder.Request.Path)
+    /* Try remap according to supplied regex */
+    remap, doneRemap := fs.RemapRequestPath(responder.Request.Path)
 
-    /* Get filesystem stat, check it exists! */
-    stat, err := os.Stat(responder.Request.Path.Absolute())
-    if err != nil {
-        /* Check file isn't in cache before throwing in the towel */
-        fs.CacheMutex.RLock()
-        file := fs.CacheMap.Get(responder.Request.Path.Absolute())
-        if file == nil {
-            fs.CacheMutex.RUnlock()
-            return &GophorError{ FileStatErr, err }
+    var err error
+    var stat os.FileInfo
+    if doneRemap {
+        /* Try get the remapped path */
+        stat, err = os.Stat(remap.Absolute())
+        if err == nil {
+            /* Remapped path exists, set this! */
+            responder.Request.Path = remap
+        } else {
+            /* Last ditch effort to grab generated file */
+            return fs.FetchGeneratedFile(responder, err)
         }
-
-        /* It's there! Get contents, unlock and return */
-        file.Mutex.RLock()
-        gophorErr := file.WriteContents(responder)
-        file.Mutex.RUnlock()
-
-        fs.CacheMutex.RUnlock()
-        return gophorErr
+    } else {
+        /* Just get regular supplied request path */
+        stat, err = os.Stat(responder.Request.Path.Absolute())
+        if err != nil {
+            /* Last ditch effort to grab generated file */
+            return fs.FetchGeneratedFile(responder, err)
+        }
     }
 
     switch {
@@ -117,6 +139,24 @@ func (fs *FileSystem) HandleRequest(responder *Responder) *GophorError {
         default:
             return &GophorError{ FileTypeErr, nil }
     }
+}
+
+func (fs *FileSystem) FetchGeneratedFile(responder *Responder, err error) *GophorError {
+    fs.CacheMutex.RLock()
+    file := fs.CacheMap.Get(responder.Request.Path.Absolute())
+    if file == nil {
+        /* Generated file at path not in cache map either, return */
+        fs.CacheMutex.RUnlock()
+        return &GophorError{ FileStatErr, err }
+    }
+
+    /* It's there! Get contents! */
+    file.Mutex.RLock()
+    gophorErr := file.WriteContents(responder)
+    file.Mutex.RUnlock()
+
+    fs.CacheMutex.RUnlock()
+    return gophorErr
 }
 
 func (fs *FileSystem) FetchFile(responder *Responder) *GophorError {

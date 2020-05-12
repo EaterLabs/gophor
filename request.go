@@ -21,13 +21,10 @@ func NewRequestPath(rootDir, relPath string) *RequestPath {
     return &RequestPath{ rootDir, relPath, path.Join(rootDir, strings.TrimSuffix(relPath, "/")), relPath }
 }
 
-func (rp *RequestPath) RemapActual(newRel string) {
-    rp.Rel = newRel
-    rp.Abs = path.Join(rp.Root, strings.TrimSuffix(newRel, "/"))
-}
-
-func (rp *RequestPath) RemapVirtual(newSel string) {
-    rp.Select = newSel
+func (rp *RequestPath) RemapPath(newPath string) *RequestPath {
+    requestPath := NewRequestPath(rp.RootDir(), sanitizeRelativePath(rp.RootDir(), newPath))
+    requestPath.Select = rp.Relative()
+    return requestPath
 }
 
 func (rp *RequestPath) RootDir() string {
@@ -84,6 +81,10 @@ func (rp *RequestPath) TrimRelSuffix(suffix string) string {
 
 func (rp *RequestPath) TrimAbsSuffix(suffix string) string {
     return strings.TrimSuffix(strings.TrimSuffix(rp.Absolute(), suffix), "/")
+}
+
+func (rp *RequestPath) JoinCurDir(extPath string) string {
+    return path.Join(path.Dir(rp.Relative()), extPath)
 }
 
 func (rp *RequestPath) JoinRootDir(extPath string) string {

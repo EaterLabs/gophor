@@ -179,16 +179,6 @@ func (g *GophermapExecFileSection) Render(responder *Responder) *GophorError {
     return executeFile(responder.CloneWithRequest(g.Request))
 }
 
-type GophermapExecCommandSection struct {
-    /* Holds onto a request with shell command and supplied arguments */
-    Request *Request
-}
-
-func (g *GophermapExecCommandSection) Render(responder *Responder) *GophorError {
-    /* Create new responder from supplied and using stored path */
-    return executeCommand(responder.CloneWithRequest(g.Request))
-}
-
 /* Read and parse a gophermap into separately cacheable and renderable GophermapSection */
 func readGophermap(path *RequestPath) ([]GophermapSection, *GophorError) {
     /* Create return slice */
@@ -233,12 +223,7 @@ func readGophermap(path *RequestPath) ([]GophermapSection, *GophorError) {
                 case TypeSubGophermap:
                     /* Parse new RequestPath and parameters */
                     subPath, parameters := parseLineRequestString(path, line[1:])
-
-                    if !subPath.HasAbsPrefix("/") {
-                        /* Special case here where command assumed in path, return GophermapExecCommandSection */
-                        sections = append(sections, &GophermapExecCommandSection{ &Request{ subPath, parameters } })
-                        break
-                    } else if subPath.Relative() == "" || subPath.Relative() == path.Relative() {
+                    if subPath.Relative() == "" || subPath.Relative() == path.Relative() {
                         /* Either path parsing failed, or we've been supplied same gophermap, and recursion is
                          * recursion is recursion is bad kids!
                          */

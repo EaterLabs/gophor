@@ -72,7 +72,7 @@ func setupServer() []*GophorListener {
 
     /* File system */
     fileMonitorFreq    := flag.Duration("file-monitor-freq", time.Second*60, "Change file monitor frequency.")
-    fileSystemRemap    := flag.String("file-remap", "", "New-line separated list of file remappings of format: /virtual/relative/path -> /actual/relative/path")
+    fileRemaps         := flag.String("file-remap", "", "New-line separated list of file remappings of format: /virtual/relative/path -> /actual/relative/path")
 
     /* Cache settings */
     cacheSize          := flag.Int("cache-size", 50, "Change file cache size, measured in file count.")
@@ -88,7 +88,6 @@ func setupServer() []*GophorListener {
 
     /* Regex */
     restrictedFiles    := flag.String("restrict-files", "", "New-line separated list of regex statements restricting accessible files.")
-    restrictedCommands := flag.String("restrict-commands", "", "New-line separated list of regex statements restricting accessible commands.")
 
     /* User supplied caps.txt information */
     serverDescription  := flag.String("description", "Gophor, a Gopher server in Go.", "Change server description in generated caps.txt.")
@@ -107,6 +106,10 @@ func setupServer() []*GophorListener {
     socketReadBuf      := flag.Int("socket-read-buf", 256, "Change socket read buffer size (bytes).")
     socketReadMax      := flag.Int("socket-read-max", 8, "Change socket read count max (integer multiplier socket-read-buf-max)")
     fileReadBuf        := flag.Int("file-read-buf", 4096, "Change file read buffer size (bytes).")
+
+    /* Socket deadliens */
+    socketReadTimeout  := flag.Duration("socket-read-timeout", time.Second*5, "Change socket read deadline (timeout).")
+    socketWriteTimeout := flag.Duration("socket-write-timeout", time.Second*30, "Change socket write deadline (timeout).")
 
     /* Version string */
     version            := flag.Bool("version", false, "Print version information.")
@@ -128,6 +131,10 @@ func setupServer() []*GophorListener {
     Config.SocketReadBufSize  = *socketReadBuf
     Config.SocketReadMax      = *socketReadBuf * *socketReadMax
     Config.FileReadBufSize    = *fileReadBuf
+
+    /* Setup socket deadlines */
+    Config.SocketReadDeadline  = *socketReadTimeout
+    Config.SocketWriteDeadline = *socketWriteTimeout
 
     /* Have to be set AFTER page width variable set */
     Config.FooterText = formatGophermapFooter(*footerText, !*footerSeparator)
@@ -193,11 +200,6 @@ func setupServer() []*GophorListener {
         log.Fatalf("No valid port to listen on\n")
     }
 
-    /* Compile regex statements */
-    Config.CmdParseLineRegex  = compileCmdParseRegex()
-    Config.RestrictedFiles    = compileUserRestrictedRegex(*restrictedFiles)
-    Config.RestrictedCommands = compileUserRestrictedRegex(*restrictedCommands)
-
     /* Setup file cache */
     Config.FileSystem = new(FileSystem)
 
@@ -223,8 +225,9 @@ func setupServer() []*GophorListener {
         cachePolicyFiles(*serverRoot, *serverDescription, *serverAdmin, *serverGeoloc)
     }
 
-    /* Setup file remappings */
-    Config.FileSystem.Remap, Config.FileSystem.ReverseRemap = parseFileSystemRemaps(*fileSystemRemap)
+    /* Setup file restrictions and remappings */
+    Config.FileSystem.Restricted = compileUserRestrictedRegex(*restrictedFiles)
+    Config.FileSystem.Remaps = compileUserRemapRegex(*fileRemaps)
 
     /* Return the created listeners slice :) */
     return listeners

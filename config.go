@@ -1,7 +1,6 @@
 package main
 
 import (
-    "regexp"
     "time"
 )
 
@@ -23,11 +22,6 @@ type ServerConfig struct {
     FooterText         []byte
     PageWidth          int
 
-    /* Regex */
-    CmdParseLineRegex  *regexp.Regexp
-    RestrictedFiles    []*regexp.Regexp
-    RestrictedCommands []*regexp.Regexp
-
     /* Logging */
     SysLog             LoggerInterface
     AccLog             LoggerInterface
@@ -41,4 +35,8 @@ type ServerConfig struct {
     SocketReadMax      int
     SkipPrefixBufSize  int
     FileReadBufSize    int
+
+    /* Socket deadlines */
+    SocketReadDeadline  time.Duration
+    SocketWriteDeadline time.Duration
 }

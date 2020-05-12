@@ -6,14 +6,19 @@ import (
     "log"
 )
 
-func compileCmdParseRegex() *regexp.Regexp {
-    return regexp.MustCompile(` `)
+const (
+    FileRemapSeparatorStr = " -> "
+)
+
+type FileRemap struct {
+    Regex    *regexp.Regexp
+    Template string
 }
 
 /* Compile a user supplied new line separated list of regex statements */
 func compileUserRestrictedRegex(restrictions string) []*regexp.Regexp {
     /* Return slice */
-    restricted := make([]*regexp.Regexp, 0)
+    restrictedRegex := make([]*regexp.Regexp, 0)
 
     /* Split the user supplied regex statements by new line */
     for _, expr := range strings.Split(restrictions, "\n") {
@@ -22,33 +27,48 @@ func compileUserRestrictedRegex(restrictions string) []*regexp.Regexp {
             continue
         }
 
-        /* Try compile regex then append */
+        /* Try compile regex */
         regex, err := regexp.Compile(expr)
         if err != nil {
             log.Fatalf("Failed compiling user supplied regex: %s\n", expr)
         }
-        restricted = append(restricted, regex)
+
+        /* Append restricted */
+        restrictedRegex = append(restrictedRegex, regex)
+        Config.SysLog.Info("", "Compiled restricted: %s\n", expr)
     }
 
-    return restricted
+    return restrictedRegex
 }
 
-/* Iterate through restricted file expressions, check if file _is_ restricted */
-func isRestrictedFile(name string) bool {
-    for _, regex := range Config.RestrictedFiles {
-        if regex.MatchString(name) {
-            return true
-        }
-    }
-    return false
-}
+/* Compile a user supplied new line separated list of file remap regex statements */
+func compileUserRemapRegex(remaps string) []*FileRemap {
+    /* Return slice */
+    fileRemaps := make([]*FileRemap, 0)
 
-/* Iterate through restricted command expressions, check if command _is_ restricted */
-func isRestrictedCommand(name string) bool {
-    for _, regex := range Config.RestrictedCommands {
-        if regex.MatchString(name) {
-            return true
+    /* Split the user supplied regex statements by new line */
+    for _, expr := range strings.Split(remaps, "\n") {
+        /* Empty expression, skip */
+        if len(expr) == 0 {
+            continue
         }
+
+        /* Split into alias and remap string (MUST BE LENGTH 2) */
+        split := strings.Split(expr, FileRemapSeparatorStr)
+        if len(split) != 2 {
+            continue
+        }
+
+        /* Try compile regex */
+        regex, err := regexp.Compile(strings.TrimPrefix(split[0], "/"))
+        if err != nil {
+            log.Fatalf("Failed compiling user supplied regex: %s\n", expr)
+        }
+
+        /* Append file remapper */
+        fileRemaps = append(fileRemaps, &FileRemap{ regex, strings.TrimPrefix(split[1], "/") })
+        Config.SysLog.Info("", "Compiled remap: %s\n", expr)
     }
-    return false
+
+    return fileRemaps
 }

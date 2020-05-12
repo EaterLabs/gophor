@@ -2,39 +2,7 @@ package main
 
 import (
     "strings"
-    "log"
 )
-
-const (
-    FileRemapSeparator = " -> "
-)
-
-/* Parse file system remaps */
-func parseFileSystemRemaps(fileSystemRemap string) (map[string]string, map[string]string) {
-    remap := make(map[string]string)
-    reverseRemap := make(map[string]string)
-
-    for _, remapEntry := range strings.Split(fileSystemRemap, UnixLineEnd) {
-        /* Empty remap entry */
-        if len(remapEntry) == 0 {
-            continue
-        }
-
-        /* Split remap entry into virtual and actual path, then append */
-        mapSplit := strings.Split(remapEntry, FileRemapSeparator)
-        if len(mapSplit) != 2 {
-            log.Fatalf("Invalid filesystem remap entry: %s\n", remapEntry)
-        } else {
-            virtualPath := strings.TrimPrefix(mapSplit[0], "/")
-            actualPath := strings.TrimPrefix(mapSplit[1], "/")
-
-            remap[virtualPath] = actualPath
-            reverseRemap[actualPath] = virtualPath
-        }
-    }
-
-    return remap, reverseRemap
-}
 
 /* Parse a request string into a path and parameters string */
 func parseRequestString(request string) (string, []string) {
@@ -97,33 +65,25 @@ func parseLineType(line string) ItemType {
 /* Parses a line in a gophermap into a filesystem request path and a string slice of arguments */
 func parseLineRequestString(requestPath *RequestPath, lineStr string) (*RequestPath, []string) {
     if strings.HasPrefix(lineStr, "/") {
-        /* We are dealing with a file input of some kind. Figure out if CGI-bin */
+        /* Assume is absolute (well, seeing server root as '/') */
         if strings.HasPrefix(lineStr[1:], CgiBinDirStr) {
-            /* CGI-bin script, parse requestPath and parameters as standard URL encoding */
+            /* CGI script, parse request path and parameters */
             relPath, parameters := parseRequestString(lineStr)
             return NewRequestPath(requestPath.RootDir(), relPath), parameters
         } else {
-            /* Regular file, no more parsing needing */
-            return NewRequestPath(requestPath.RootDir(), lineStr[1:]), []string{}
+            /* Regular file, no more parsing */
+            return NewRequestPath(requestPath.RootDir(), lineStr), []string{}
         }
     } else {
-        /* We have been passed a command string */
-        args := splitCommandString(lineStr)
-        if len(args) > 1 {
-            return NewRequestPath("", args[0]), args[1:]
+        /* Assume relative to current directory */
+        if strings.HasPrefix(lineStr, CgiBinDirStr) && requestPath.Relative() == "" {
+            /* If begins with cgi-bin and is at root dir, parse as cgi-bin */
+            relPath, parameters := parseRequestString(lineStr)
+            return NewRequestPath(requestPath.RootDir(), relPath), parameters
         } else {
-            return NewRequestPath("", args[0]), []string{}
+            /* Regular file, no more parsing */
+            return NewRequestPath(requestPath.RootDir(), requestPath.JoinCurDir(lineStr)), []string{}
         }
-    }
-}
-
-/* Splits a line string into it's arguments with standard space delimiter */
-func splitCommandString(requestStr string) []string {
-    split := Config.CmdParseLineRegex.Split(requestStr, -1)
-    if split == nil {
-        return []string{ requestStr }
-    } else {
-        return split
     }
 }
 
