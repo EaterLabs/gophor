@@ -94,6 +94,9 @@ gophor [args]
        -log-opts            Comma-separated list of lop opts (timestamp|ip)
 
        -file-monitor-freq   Change file-cache freshness check frequency.
+       -file-remap          New-line separated list of file remappings of format:
+                            /virtual/relative/path -> /actual/relative/path
+
        -cache-size          Change max no. files in file-cache.
        -cache-file-max      Change maximum allowed size of a cached file.
        -disable-cache       Disable file caching.
