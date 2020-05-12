@@ -72,7 +72,6 @@ func setupServer() []*GophorListener {
 
     /* File system */
     fileMonitorFreq    := flag.Duration("file-monitor-freq", time.Second*60, "Change file monitor frequency.")
-    fileRemaps         := flag.String("file-remap", "", "New-line separated list of file remappings of format: /virtual/relative/path -> /actual/relative/path")
 
     /* Cache settings */
     cacheSize          := flag.Int("cache-size", 50, "Change file cache size, measured in file count.")
@@ -88,6 +87,7 @@ func setupServer() []*GophorListener {
 
     /* Regex */
     restrictedFiles    := flag.String("restrict-files", "", "New-line separated list of regex statements restricting accessible files.")
+    fileRemaps         := flag.String("file-remap", "", "New-line separated list of file remappings of format: /virtual/relative/path -> /actual/relative/path")
 
     /* User supplied caps.txt information */
     serverDescription  := flag.String("description", "Gophor, a Gopher server in Go.", "Change server description in generated caps.txt.")

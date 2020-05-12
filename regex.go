@@ -11,8 +11,8 @@ const (
 )
 
 type FileRemap struct {
-    Regex    *regexp.Regexp
-    Template string
+    Regex      *regexp.Regexp
+    Template   string
 }
 
 /* Compile a user supplied new line separated list of regex statements */
@@ -60,7 +60,7 @@ func compileUserRemapRegex(remaps string) []*FileRemap {
         }
 
         /* Try compile regex */
-        regex, err := regexp.Compile(strings.TrimPrefix(split[0], "/"))
+        regex, err := regexp.Compile("(?m)"+strings.TrimPrefix(split[0], "/")+"$")
         if err != nil {
             log.Fatalf("Failed compiling user supplied regex: %s\n", expr)
         }

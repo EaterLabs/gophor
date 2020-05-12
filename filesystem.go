@@ -53,7 +53,7 @@ func (fs *FileSystem) RemapRequestPath(requestPath *RequestPath) (*RequestPath, 
 
         /* Create new path from template and submatches */
         newPath := make([]byte, 0)
-        for _, submatches := range remap.Regex.FindAllStringSubmatchIndex(requestPath.Selector(), -1) {
+        for _, submatches := range remap.Regex.FindAllStringSubmatchIndex(requestPath.Relative(), -1) {
             newPath = remap.Regex.ExpandString(newPath, remap.Template, requestPath.Relative(), submatches)
         }
 
