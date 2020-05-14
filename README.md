@@ -23,7 +23,7 @@ WARNING: the development branch is filled with lava, fear and capitalism.
 
 - CGI/1.1 support (see below for CGI environment variables set).
 
-- HTTP style URL query and encoding support.
+- Standard HTTP URL encoding support.
 
 - Serve `DIR/gophermap` by default, else falls back to directory listing.
 
