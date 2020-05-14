@@ -197,6 +197,13 @@ Type | Treat as | Meaning
      |          |               file here.
 ```
 
+# Encoding
+
+By default, URLs are parsed as having standard (HTTP) URL encoding. All other
+parsed text content (gophermaps) are treated as UTF-8, as this is the default
+encoding scheme for Go strings. Support for more encoding schemes is planned
+for the future.
+
 # Compliance
 
 We aim to comply more with GopherII (see in references below).
@@ -315,7 +322,7 @@ Null port: `0`
 
 # Todos
 
-- Set default character encoding as US-ASCII
+- Support setting character encoding
 
 - Move filesystem_read functions to FileSystem struct function
 
