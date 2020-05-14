@@ -84,59 +84,62 @@ permissions then there are a few alternatives:
 
 ```
 gophor [args]
-       -root                Change server root directory.
-       -bind-addr           Change server bind-address (used in creating
-                            socket).
-       -port                Change server bind port.
+       -root                 Change server root directory.
+       -bind-addr            Change server bind-address (used in creating
+                             socket).
+       -port                 Change server bind port.
 
-       -fwd-port            Change port used in $port replacement strings
-                            (e.g. when port forwarding).
-       -hostname            Change server hostname (FQDN).
+       -fwd-port             Change port used in $port replacement strings
+                             (e.g. when port forwarding).
+       -hostname             Change server hostname (FQDN).
 
-       -system-log          Path to gophor system log file.
-       -access-log          Path to gophor access log file.
-       -log-output          Change log output type (disable|stderr|file)
-       -log-opts            Comma-separated list of lop opts (timestamp|ip)
+       -system-log           Path to gophor system log file.
+       -access-log           Path to gophor access log file.
+       -log-output           Change log output type (disable|stderr|file)
+       -log-opts             Comma-separated list of lop opts (timestamp|ip)
 
-       -file-monitor-freq   Change file-cache freshness check frequency.
-       -file-remap          New-line separated list of file remappings of format:
-                            /virtual/relative/path -> /actual/relative/path
+       -file-monitor-freq    Change file-cache freshness check frequency.
+       -file-remap           New-line separated list of file remappings of format:
+                             /virtual/relative/path -> /actual/relative/path
 
-       -cache-size          Change max no. files in file-cache.
-       -cache-file-max      Change maximum allowed size of a cached file.
-       -disable-cache       Disable file caching.
+       -cache-size           Change max no. files in file-cache.
+       -cache-file-max       Change maximum allowed size of a cached file.
+       -disable-cache        Disable file caching.
 
-       -page-width          Change page width used when formatting output.
-       -footer              Change gophermap footer text (Unix new-line
-                            separated lines).
-       -no-footer-separator Disable footer text line separator.
+       -page-width           Change page width used when formatting output.
+       -footer               Change gophermap footer text (Unix new-line
+                             separated lines).
+       -no-footer-separator  Disable footer text line separator.
 
-       -restrict-files      New-line separated list of regex statements
-                            (checked against absolute paths) restricting
-                            file access.
+       -restrict-files       New-line separated list of regex statements
+                             (checked against absolute paths) restricting
+                             file access.
 
-       -description         Change server description in generated caps.txt.
-       -admin-email         Change admin email in generated caps.txt.
-       -geoloc              Change geolocation in generated caps.txt.
+       -description          Change server description in generated caps.txt.
+       -admin-email          Change admin email in generated caps.txt.
+       -geoloc               Change geolocation in generated caps.txt.
 
-       -disable-cgi         Disable CGI and all executable support.
-       -http-compat-cgi     Enable HTTP CGI script compatibility (will strip
-                            HTTP headers).
-       -http-header-buf     Change max CGI read count to look for and strip
-                            HTTP headers before sending raw (bytes).
-       -safe-path           Set safe PATH variable to be used when executing
-                            CGI scripts, gophermaps and inline shell
-                            commands.
-       -max-exec-time       Change max executable CGI, gophermap and inline
-                            shell command runtime.
+       -disable-cgi          Disable CGI and all executable support.
+       -http-compat-cgi      Enable HTTP CGI script compatibility (will strip
+                             HTTP headers).
+       -http-header-buf      Change max CGI read count to look for and strip
+                             HTTP headers before sending raw (bytes).
+       -safe-path            Set safe PATH variable to be used when executing
+                             CGI scripts, gophermaps and inline shell
+                             commands.
+       -max-exec-time        Change max executable CGI, gophermap and inline
+                             shell command runtime.
 
-       -socket-write-buf    Change socket write buffer size (bytes).
-       -socket-read-buf     Change socket read buffer size (bytes).
-       -socket-read-max     Change socket read count max (integer multiplier
-                            to socket-read-buf-max).
-       -file-read-buf       Change file read buffer size (bytes).
+       -socket-write-buf     Change socket write buffer size (bytes).
+       -socket-read-buf      Change socket read buffer size (bytes).
+       -socket-read-max      Change socket read count max (integer multiplier
+                             to socket-read-buf-max).
+       -file-read-buf        Change file read buffer size (bytes).
 
-       -version             Print version string.
+       -socket-read-timeout  Change socket read deadline (timeout).
+       -socket-write-timeout Change socket write buffer size (bytes).
+
+       -version              Print version string.
 ```
 
 # Supported gophermap item types
