@@ -41,7 +41,7 @@ type ServerConfig struct {
     SocketReadDeadline  time.Duration
     SocketWriteDeadline time.Duration
 
-    /* Precompiled regular expressions for performance */
+    /* Precompiled regular expressions */
     RgxGophermap        *regexp.Regexp
     RgxCgiBin           *regexp.Regexp
 }
