@@ -146,7 +146,7 @@ gophor [args]
        -file-read-buf        Change file read buffer size (bytes).
 
        -socket-read-timeout  Change socket read deadline (timeout).
-       -socket-write-timeout Change socket write buffer size (bytes).
+       -socket-write-timeout Change socket write deadline (timeout).
 
        -version              Print version string.
 ```
