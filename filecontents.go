@@ -75,6 +75,7 @@ func (gc *GophermapContents) Render(responder *Responder) *GophorError {
         gophorErr = line.Render(responder)
         if gophorErr != nil {
             Config.SysLog.Error("", "Error executing gophermap contents: %s\n", gophorErr.Error())
+            return &GophorError{ InvalidGophermapErr, gophorErr }
         }
     }
 
@@ -86,7 +87,11 @@ func (gc *GophermapContents) Load() *GophorError {
     /* Load the gophermap into memory as gophermap sections */
     var gophorErr *GophorError
     gc.Sections, gophorErr = readGophermap(gc.Request)
-    return gophorErr
+    if gophorErr != nil {
+        return &GophorError{ InvalidGophermapErr, gophorErr }
+    } else {
+        return nil
+    }
 }
 
 func (gc *GophermapContents) Clear() {
@@ -226,11 +231,15 @@ func readGophermap(request *Request) ([]GophermapSection, *GophorError) {
                 case TypeSubGophermap:
                     /* Parse new RequestPath and parameters */
                     subRequest, gophorErr := parseLineRequestString(request.Path, line[1:])
-                    if gophorErr != nil || subRequest.Path.Relative() == "" || subRequest.Path.Relative() == request.Path.Relative() {
-                        /* Either path parsing failed, or we've been supplied same gophermap, and recursion is
+                    if gophorErr != nil {
+                        /* Failed parsing line request string, set returnErr and request finish */
+                        returnErr = gophorErr
+                        return true
+                    } else if subRequest.Path.Relative() == "" || subRequest.Path.Relative() == request.Path.Relative() {
+                        /* Failed parsing line request string, or we've been supplied same gophermap, and recursion is
                          * recursion is recursion is bad kids! Set return error and request finish.
                          */
-                        returnErr = gophorErr
+                        returnErr = &GophorError{ InvalidRequestErr, nil }
                         return true
                     }
 
@@ -238,7 +247,8 @@ func readGophermap(request *Request) ([]GophermapSection, *GophorError) {
                     stat, err := os.Stat(subRequest.Path.Absolute())
                     if (err != nil) || (stat.Mode() & os.ModeDir != 0) {
                         /* File read error or is directory */
-                        break
+                        returnErr = &GophorError{ FileStatErr, err }
+                        return true
                     }
 
                     /* Check if we've been supplied subgophermap or regular file */

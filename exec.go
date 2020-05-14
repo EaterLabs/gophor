@@ -36,6 +36,7 @@ func setupInitialCgiEnviron(path, charset string) []string {
 func generateCgiEnvironment(responder *Responder) []string {
     /* Get initial CgiEnv variables */
     env := Config.CgiEnv
+
     env = append(env, envKeyValue("SERVER_NAME",     responder.Host.Name())) /* MUST be set to name of server host client is connecting to */
     env = append(env, envKeyValue("SERVER_PORT",     responder.Host.Port())) /* MUST be set to the server port that client is connecting to */
     env = append(env, envKeyValue("REMOTE_ADDR",     responder.Client.Ip())) /* Remote client addr, MUST be set */
