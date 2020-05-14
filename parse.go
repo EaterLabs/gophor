@@ -2,21 +2,38 @@ package main
 
 import (
     "strings"
+    "net/url"
 )
 
 /* Parse a request string into a path and parameters string */
-func parseRequestString(request string) (string, []string) {
-    /* Read up to first '?' and then put rest into single slice string array */
-    i := 0
-    for i < len(request) {
-        if request[i] == '?' {
-            break
-        }
-        i += 1
+func parseGopherUrl(request string) (*GopherUrl, *GophorError) {
+    if strings.Contains(request, "#") ||     // we don't support fragments
+       strings.HasPrefix(request, "GET ") {  // we don't support HTTP requests
+        return nil, &GophorError{ InvalidRequestErr, nil }
     }
 
-    /* Use strings.TrimPrefix() as it returns empty string for zero length string */
-    return request[:i], []string{ request[i:] }
+    /* Check if string contains any ASCII control byte */
+    for i := 0; i < len(request); i += 1 {
+        if request[i] < ' ' || request[i] == 0x7f {
+            return nil, &GophorError{ InvalidRequestErr, nil }
+        }
+    }
+
+    /* Split into 2 substrings by '?'. Url path and query */
+    split := strings.SplitN(request, "?", 2)
+
+    /* Unescape path */
+    path, err := url.PathUnescape(split[0])
+    if err != nil {
+        return nil, &GophorError{ InvalidRequestErr, nil }
+    }
+
+    /* Return GopherUrl based on this split request */
+    if len(split) == 1 {
+        return &GopherUrl{ path, "" }, nil
+    } else {
+        return &GopherUrl{ path, split[1] }, nil
+    }
 }
 
 /* Parse line type from contents */
@@ -62,27 +79,35 @@ func parseLineType(line string) ItemType {
     return ItemType(line[0])
 }
 
-/* Parses a line in a gophermap into a filesystem request path and a string slice of arguments */
-func parseLineRequestString(requestPath *RequestPath, lineStr string) (*RequestPath, []string) {
+/* Parses a line in a gophermap into a new request object */
+func parseLineRequestString(requestPath *RequestPath, lineStr string) (*Request, *GophorError) {
     if strings.HasPrefix(lineStr, "/") {
         /* Assume is absolute (well, seeing server root as '/') */
-        if strings.HasPrefix(lineStr[1:], CgiBinDirStr) {
+        if withinCgiBin(lineStr[1:]) {
             /* CGI script, parse request path and parameters */
-            relPath, parameters := parseRequestString(lineStr)
-            return NewRequestPath(requestPath.RootDir(), relPath), parameters
+            url, gophorErr := parseGopherUrl(lineStr[1:])
+            if gophorErr != nil {
+                return nil, gophorErr
+            } else {
+                return &Request{ NewRequestPath(requestPath.RootDir(), url.Path), url.Parameters }, nil
+            }
         } else {
             /* Regular file, no more parsing */
-            return NewRequestPath(requestPath.RootDir(), lineStr), []string{}
+            return &Request{ NewRequestPath(requestPath.RootDir(), lineStr[1:]), "" }, nil
         }
     } else {
         /* Assume relative to current directory */
-        if strings.HasPrefix(lineStr, CgiBinDirStr) && requestPath.Relative() == "" {
+        if withinCgiBin(lineStr) && requestPath.Relative() == "" {
             /* If begins with cgi-bin and is at root dir, parse as cgi-bin */
-            relPath, parameters := parseRequestString(lineStr)
-            return NewRequestPath(requestPath.RootDir(), relPath), parameters
+            url, gophorErr := parseGopherUrl(lineStr)
+            if gophorErr != nil {
+                return nil, gophorErr
+            } else {
+                return &Request{ NewRequestPath(requestPath.RootDir(), url.Path), url.Parameters }, nil
+            }
         } else {
             /* Regular file, no more parsing */
-            return NewRequestPath(requestPath.RootDir(), requestPath.JoinCurDir(lineStr)), []string{}
+            return &Request{ NewRequestPath(requestPath.RootDir(), requestPath.JoinCurDir(lineStr)), "" }, nil
         }
     }
 }

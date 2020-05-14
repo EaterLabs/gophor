@@ -12,12 +12,6 @@ type Responder struct {
     Request *Request
 }
 
-func NewSanitizedRequest(conn *GophorConn, requestStr string) *Request {
-    relPath, paramaters := parseRequestString(requestStr)
-    relPath = sanitizeRelativePath(conn.RootDir(), relPath)
-    return &Request{ NewRequestPath(conn.RootDir(), relPath), paramaters }
-}
-
 func NewResponder(conn *GophorConn, request *Request) *Responder {
     bufWriter := bufio.NewWriterSize(conn.Conn, Config.SocketWriteBufSize)
     return &Responder{ conn.Host, conn.Client, bufWriter, request }

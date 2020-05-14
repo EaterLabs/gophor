@@ -80,33 +80,36 @@ func (worker *Worker) Serve() {
             /* Do nothing */
     }
 
-    /* Create new request from received */
-    request := NewSanitizedRequest(worker.Conn, received)
+    /* Create GopherUrl object from request string */
+    url, gophorErr := parseGopherUrl(received)
+    if gophorErr == nil {
+        /* Create new request from url object */
+        request := NewSanitizedRequest(worker.Conn, url)
 
-    /* Create new responder from request */
-    responder := NewResponder(worker.Conn, request)
+        /* Create new responder from request */
+        responder := NewResponder(worker.Conn, request)
 
-    /* Handle request with supplied responder */
-    gophorErr := Config.FileSystem.HandleRequest(responder)
-
-    /* Handle any error */
-    if gophorErr != nil {
-        /* Log serve failure to error to system */
-        Config.SysLog.Error("", gophorErr.Error())
-
-        /* Generate response bytes from error code */
-        errResponse := generateGopherErrorResponseFromCode(gophorErr.Code)
-
-        /* If we got response bytes to send? SEND 'EM! */
-        if errResponse != nil {
-            /* No gods. No masters. We don't care about error checking here */
-            responder.WriteFlush(errResponse)
+        /* Handle request with supplied responder */
+        gophorErr = Config.FileSystem.HandleRequest(responder)
+        if gophorErr == nil {
+            /* Log success to access and return! */
+            responder.AccessLogInfo("Served: %s\n", request.Path.Absolute())
+            return
+        } else {
+            /* Log failure to access */
+            responder.AccessLogError("Failed to serve: %s\n", request.Path.Absolute())
         }
+    }
 
-        /* Log failure to access */
-        responder.AccessLogError("Failed to serve: %s\n", request.Path.Absolute())
-    } else {
-        /* Log served to access */
-        responder.AccessLogInfo("Served: %s\n", request.Path.Absolute())
+    /* Log serve failure to error to system */
+    Config.SysLog.Error("", gophorErr.Error())
+
+    /* Generate response bytes from error code */
+    errResponse := generateGopherErrorResponseFromCode(gophorErr.Code)
+
+    /* If we got response bytes to send? SEND 'EM! */
+    if errResponse != nil {
+        /* No gods. No masters. We don't care about error checking here */
+        worker.Conn.Write(errResponse)
     }
 }

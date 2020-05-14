@@ -84,11 +84,11 @@ func compileUserRemapRegex(remaps string) []*FileRemap {
 }
 
 /* Check if file path is gophermap */
-func isGophermap(path *RequestPath) bool {
-    return Config.RgxGophermap.MatchString(path.Relative())
+func isGophermap(path string) bool {
+    return Config.RgxGophermap.MatchString(path)
 }
 
 /* Check if file path within cgi-bin */
-func withinCgiBin(path *RequestPath) bool {
-    return Config.RgxCgiBin.MatchString(path.Relative())
+func withinCgiBin(path string) bool {
+    return Config.RgxCgiBin.MatchString(path)
 }

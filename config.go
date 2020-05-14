@@ -19,7 +19,6 @@ type ServerConfig struct {
     MaxExecRunTime      time.Duration
 
     /* Content settings */
-    CharSet             string
     FooterText          []byte
     PageWidth           int
 

@@ -77,38 +77,32 @@ func (l *GophorListener) Accept() (*GophorConn, error) {
         return nil, err
     }
 
-    gophorConn := new(GophorConn)
-    gophorConn.Conn = &DeadlineConn{ conn }
-
-    /* Copy over listener host */
-    gophorConn.Host = l.Host
-    gophorConn.Root = l.Root
-
     /* Should always be ok as listener is type TCP (see above) */
     addr, _ := conn.RemoteAddr().(*net.TCPAddr)
-    gophorConn.Client = &ConnClient{
-        addr.IP.String(),
-        strconv.Itoa(addr.Port),
-    }
+    client := &ConnClient{ addr.IP.String(), strconv.Itoa(addr.Port) }
 
-    return gophorConn, nil
+    return NewGophorConn(NewDeadlineConn(conn), l.Host, client, l.Root), nil
 }
 
 type DeadlineConn struct {
-    /* Simple wrapper to net.Conn that's sets deadlines
+    /* Simple wrapper to net.Conn that sets deadlines
      * on each call to Read() / Write()
      */
     conn net.Conn
 }
 
+func NewDeadlineConn(conn net.Conn) *DeadlineConn {
+    return &DeadlineConn{ conn }
+}
+
 func (c *DeadlineConn) Read(b []byte) (int, error) {
-    /* Implements reader + updates deadline */
+    /* Implements a regular net.Conn + updates deadline */
     c.conn.SetReadDeadline(time.Now().Add(Config.SocketReadDeadline))
     return c.conn.Read(b)
 }
 
 func (c *DeadlineConn) Write(b []byte) (int, error) {
-    /* Implements writer + updates deadline */
+    /* Implements a regular net.Conn + updates deadline */
     c.conn.SetWriteDeadline(time.Now().Add(Config.SocketWriteDeadline))
     return c.conn.Write(b)
 }
@@ -125,6 +119,15 @@ type GophorConn struct {
     Host    *ConnHost
     Client  *ConnClient
     Root    string
+}
+
+func NewGophorConn(conn *DeadlineConn, host *ConnHost, client *ConnClient, root string) *GophorConn {
+    return &GophorConn{
+        conn,
+        host,
+        client,
+        root,
+    }
 }
 
 func (c *GophorConn) Read(b []byte) (int, error) {

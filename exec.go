@@ -16,7 +16,7 @@ func setupExecEnviron(path string) []string {
 }
 
 /* Setup initial (i.e. constant) CGI environment variables */
-func setupInitialCgiEnviron(path string) []string {
+func setupInitialCgiEnviron(path, charset string) []string {
     return []string{
         /* RFC 3875 standard */
         envKeyValue("GATEWAY_INTERFACE",  "CGI/1.1"),               /* MUST be set to the dialect of CGI being used by the server */
@@ -28,7 +28,7 @@ func setupInitialCgiEnviron(path string) []string {
         /* Non-standard */
         envKeyValue("PATH",               path),
         envKeyValue("COLUMNS",            strconv.Itoa(Config.PageWidth)),
-        envKeyValue("GOPHER_CHARSET",     Config.CharSet),
+        envKeyValue("GOPHER_CHARSET",     charset),
     }
 }
 
@@ -39,20 +39,12 @@ func generateCgiEnvironment(responder *Responder) []string {
     env = append(env, envKeyValue("SERVER_NAME",     responder.Host.Name())) /* MUST be set to name of server host client is connecting to */
     env = append(env, envKeyValue("SERVER_PORT",     responder.Host.Port())) /* MUST be set to the server port that client is connecting to */
     env = append(env, envKeyValue("REMOTE_ADDR",     responder.Client.Ip())) /* Remote client addr, MUST be set */
-
-    /* We store the query string in Parameters[0]. Ensure we git without initial delimiter */
-    var queryString string
-    if len(responder.Request.Parameters[0]) > 0 {
-        queryString = responder.Request.Parameters[0][1:]
-    } else {
-        queryString = responder.Request.Parameters[0]
-    }
-    env = append(env, envKeyValue("QUERY_STRING",    queryString))                     /* URL encoded search or parameter string, MUST be set even if empty */
+    env = append(env, envKeyValue("QUERY_STRING",    responder.Request.Parameters))          /* URL encoded search or parameter string, MUST be set even if empty */
     env = append(env, envKeyValue("SCRIPT_NAME",     "/"+responder.Request.Path.Relative())) /* URI path (not URL encoded) which could identify the CGI script (rather than script's output) */
     env = append(env, envKeyValue("SCRIPT_FILENAME", responder.Request.Path.Absolute()))     /* Basically SCRIPT_NAME absolute path */
     env = append(env, envKeyValue("SELECTOR",        responder.Request.Path.Selector()))
     env = append(env, envKeyValue("DOCUMENT_ROOT",   responder.Request.Path.RootDir()))
-    env = append(env, envKeyValue("REQUEST_URI",     "/"+responder.Request.Path.Relative()+responder.Request.Parameters[0]))
+    env = append(env, envKeyValue("REQUEST_URI",     "/"+responder.Request.Path.Relative()+responder.Request.Parameters))
 
     return env
 }
@@ -62,7 +54,7 @@ var executeCgi func(*Responder) *GophorError
 
 /* Execute CGI script and serve as-is */
 func executeCgiNoHttp(responder *Responder) *GophorError {
-    return execute(responder.Writer, generateCgiEnvironment(responder), responder.Request.Path.Absolute(), nil)
+    return execute(responder.Writer, generateCgiEnvironment(responder), responder.Request.Path.Absolute())
 }
 
 /* Execute CGI script and strip HTTP headers */
@@ -71,7 +63,7 @@ func executeCgiStripHttp(responder *Responder) *GophorError {
     httpStripWriter := NewHttpStripWriter(responder.Writer)
 
     /* Execute the CGI script using the new httpStripWriter */
-    gophorErr := execute(httpStripWriter, generateCgiEnvironment(responder), responder.Request.Path.Absolute(), nil)
+    gophorErr := execute(httpStripWriter, generateCgiEnvironment(responder), responder.Request.Path.Absolute())
 
     /* httpStripWriter's error takes priority as it might have parsed the status code */
     cgiStatusErr := httpStripWriter.FinishUp()
@@ -84,23 +76,18 @@ func executeCgiStripHttp(responder *Responder) *GophorError {
 
 /* Execute any file (though only allowed are gophermaps) */
 func executeFile(responder *Responder) *GophorError {
-    return execute(responder.Writer, Config.Env, responder.Request.Path.Absolute(), responder.Request.Parameters)
+    return execute(responder.Writer, Config.Env, responder.Request.Path.Absolute())
 }
 
 /* Execute a supplied path with arguments and environment, to writer */
-func execute(writer io.Writer, env []string, path string, args []string) *GophorError {
+func execute(writer io.Writer, env []string, path string) *GophorError {
     /* If CGI disbabled, just return error */
     if !Config.CgiEnabled {
         return &GophorError{ CgiDisabledErr, nil }
     }
 
     /* Setup command */
-    var cmd *exec.Cmd
-    if args != nil {
-        cmd = exec.Command(path, args...)
-    } else {
-        cmd = exec.Command(path)
-    }
+    cmd := exec.Command(path)
 
     /* Set new proccess group id */
     cmd.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}

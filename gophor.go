@@ -81,6 +81,7 @@ func setupServer() []*GophorListener {
     /* Content settings */
     pageWidth          := flag.Int("page-width", 80, "Change page width used when formatting output.")
 //    charSet            := flag.String("charset", "", "Change default output charset.")
+    charSet            := "utf-8"
 
     footerText         := flag.String("footer", " Gophor, a Gopher server in Go.", "Change gophermap footer text (Unix new-line separated lines).")
     footerSeparator    := flag.Bool("no-footer-separator", false, "Disable footer line separator.")
@@ -165,7 +166,7 @@ func setupServer() []*GophorListener {
         /* Set safe executable path and setup environments */
         Config.SysLog.Info("", "Setting safe executable path: %s\n", *safeExecPath)
         Config.Env = setupExecEnviron(*safeExecPath)
-        Config.CgiEnv = setupInitialCgiEnviron(*safeExecPath)
+        Config.CgiEnv = setupInitialCgiEnviron(*safeExecPath, charSet)
 
         /* Set executable watchdog */
         Config.SysLog.Info("", "Max executable time: %s\n", *maxExecRunTime)

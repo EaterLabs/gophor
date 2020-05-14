@@ -103,7 +103,7 @@ func (fs *FileSystem) HandleRequest(responder *Responder) *GophorError {
         /* Directory */
         case stat.Mode() & os.ModeDir != 0:
             /* Ignore anything under cgi-bin directory */
-            if withinCgiBin(responder.Request.Path) {
+            if withinCgiBin(responder.Request.Path.Relative()) {
                 return &GophorError{ IllegalPathErr, nil }
             }
 
@@ -215,8 +215,8 @@ func (fs *FileSystem) FetchFile(responder *Responder) *GophorError {
 
         /* Create new file contents */
         var contents FileContents
-        if isGophermap(responder.Request.Path) {
-            contents = &GophermapContents{ responder.Request.Path, nil }
+        if isGophermap(responder.Request.Path.Relative()) {
+            contents = &GophermapContents{ responder.Request, nil }
         } else {
             contents = &RegularFileContents{ responder.Request.Path, nil }
         }

@@ -64,7 +64,7 @@ type GophermapContents struct {
      * renderable sections of the gophermap.
      */
 
-    Path     *RequestPath
+    Request  *Request
     Sections []GophermapSection
 }
 
@@ -85,7 +85,7 @@ func (gc *GophermapContents) Render(responder *Responder) *GophorError {
 func (gc *GophermapContents) Load() *GophorError {
     /* Load the gophermap into memory as gophermap sections */
     var gophorErr *GophorError
-    gc.Sections, gophorErr = readGophermap(gc.Path)
+    gc.Sections, gophorErr = readGophermap(gc.Request)
     return gophorErr
 }
 
@@ -114,22 +114,22 @@ type GophermapDirectorySection struct {
      * to hide from the client when rendering.
      */
 
-    Path    *RequestPath
+    Request *Request
     Hidden  map[string]bool
 }
 
 func (g *GophermapDirectorySection) Render(responder *Responder) *GophorError {
     /* Create new responder from supplied and using stored path */
-    return listDir(responder.CloneWithRequest(&Request{ g.Path, nil }), g.Hidden)
+    return listDir(responder.CloneWithRequest(g.Request), g.Hidden)
 }
 
 type GophermapFileSection struct {
     /* Holds onto a file path to be read and rendered when requested */
-    Path *RequestPath
+    Request *Request
 }
 
 func (g *GophermapFileSection) Render(responder *Responder) *GophorError {
-    fileContents, gophorErr := readIntoGophermap(g.Path.Absolute())
+    fileContents, gophorErr := readIntoGophermap(g.Request.Path.Absolute())
     if gophorErr != nil {
         return gophorErr
     }
@@ -138,12 +138,12 @@ func (g *GophermapFileSection) Render(responder *Responder) *GophorError {
 
 type GophermapSubmapSection struct {
     /* Holds onto a gophermap path to be read and rendered when requested */
-    Path *RequestPath
+    Request *Request
 }
 
 func (g *GophermapSubmapSection) Render(responder *Responder) *GophorError {
     /* Load the gophermap into memory as gophermap sections */
-    sections, gophorErr := readGophermap(g.Path)
+    sections, gophorErr := readGophermap(g.Request)
     if gophorErr != nil {
         return gophorErr
     }
@@ -180,21 +180,24 @@ func (g *GophermapExecFileSection) Render(responder *Responder) *GophorError {
 }
 
 /* Read and parse a gophermap into separately cacheable and renderable GophermapSection */
-func readGophermap(path *RequestPath) ([]GophermapSection, *GophorError) {
+func readGophermap(request *Request) ([]GophermapSection, *GophorError) {
     /* Create return slice */
     sections := make([]GophermapSection, 0)
 
     /* Create hidden files map now in case dir listing requested */
     hidden := map[string]bool{
-        path.Relative(): true, /* Ignore current gophermap */
-        CgiBinDirStr:    true, /* Ignore cgi-bin if found */
+        request.Path.Relative(): true, /* Ignore current gophermap */
+        CgiBinDirStr:            true, /* Ignore cgi-bin if found */
     }
 
     /* Keep track of whether we've already come across a title line (only 1 allowed!) */
     titleAlready := false
 
+    /* Error setting within nested function below */
+    var returnErr *GophorError
+
     /* Perform buffered scan with our supplied splitter and iterators */
-    gophorErr := bufferedScan(path.Absolute(),
+    gophorErr := bufferedScan(request.Path.Absolute(),
         func(scanner *bufio.Scanner) bool {
             line := scanner.Text()
 
@@ -218,39 +221,40 @@ func readGophermap(path *RequestPath) ([]GophermapSection, *GophorError) {
 
                 case TypeHiddenFile:
                     /* Add to hidden files map */
-                    hidden[path.JoinRel(line[1:])] = true
+                    hidden[request.Path.JoinRel(line[1:])] = true
 
                 case TypeSubGophermap:
                     /* Parse new RequestPath and parameters */
-                    subPath, parameters := parseLineRequestString(path, line[1:])
-                    if subPath.Relative() == "" || subPath.Relative() == path.Relative() {
+                    subRequest, gophorErr := parseLineRequestString(request.Path, line[1:])
+                    if gophorErr != nil || subRequest.Path.Relative() == "" || subRequest.Path.Relative() == request.Path.Relative() {
                         /* Either path parsing failed, or we've been supplied same gophermap, and recursion is
-                         * recursion is recursion is bad kids!
+                         * recursion is recursion is bad kids! Set return error and request finish.
                          */
-                        break
+                        returnErr = gophorErr
+                        return true
                     }
 
                     /* Perform file stat */
-                    stat, err := os.Stat(subPath.Absolute())
+                    stat, err := os.Stat(subRequest.Path.Absolute())
                     if (err != nil) || (stat.Mode() & os.ModeDir != 0) {
                         /* File read error or is directory */
                         break
                     }
 
                     /* Check if we've been supplied subgophermap or regular file */
-                    if isGophermap(subPath) {
+                    if isGophermap(subRequest.Path.Relative()) {
                         /* If executable, store as GophermapExecFileSection, else GophermapSubmapSection */
                         if stat.Mode().Perm() & 0100 != 0 {
-                            sections = append(sections, &GophermapExecFileSection { &Request{ subPath, parameters } })
+                            sections = append(sections, &GophermapExecFileSection { subRequest })
                         } else {
-                            sections = append(sections, &GophermapSubmapSection{ subPath })
+                            sections = append(sections, &GophermapSubmapSection{ subRequest })
                         }
                     } else {
                         /* If stored in cgi-bin store as GophermapExecCgiSection, else GophermapFileSection */
-                        if subPath.HasRelPrefix(CgiBinDirStr) {
-                            sections = append(sections, &GophermapExecCgiSection{ &Request{ subPath, parameters} })
+                        if withinCgiBin(subRequest.Path.Relative()) {
+                            sections = append(sections, &GophermapExecCgiSection{ subRequest })
                         } else {
-                            sections = append(sections, &GophermapFileSection{ subPath })
+                            sections = append(sections, &GophermapFileSection{ subRequest })
                         }
                     }
 
@@ -262,7 +266,7 @@ func readGophermap(path *RequestPath) ([]GophermapSection, *GophorError) {
 
                 case TypeEndBeginList:
                     /* Append GophermapDirectorySection object then break, as with TypeEnd. */
-                    dirRequest := NewRequestPath(path.RootDir(), path.TrimRelSuffix(GophermapFileStr))
+                    dirRequest := &Request{ NewRequestPath(request.Path.RootDir(), request.Path.TrimRelSuffix(GophermapFileStr)), "" }
                     sections = append(sections, &GophermapDirectorySection{ dirRequest, hidden })
                     return false
 
@@ -278,6 +282,8 @@ func readGophermap(path *RequestPath) ([]GophermapSection, *GophorError) {
     /* Check the bufferedScan didn't exit with error */
     if gophorErr != nil {
         return nil, gophorErr
+    } else if returnErr != nil {
+        return nil, returnErr
     }
 
     return sections, nil

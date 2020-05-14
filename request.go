@@ -22,7 +22,7 @@ func NewRequestPath(rootDir, relPath string) *RequestPath {
 }
 
 func (rp *RequestPath) RemapPath(newPath string) *RequestPath {
-    requestPath := NewRequestPath(rp.RootDir(), sanitizeRelativePath(rp.RootDir(), newPath))
+    requestPath := NewRequestPath(rp.RootDir(), sanitizeRawPath(rp.RootDir(), newPath))
     requestPath.Select = rp.Relative()
     return requestPath
 }
@@ -98,11 +98,21 @@ type Request struct {
      */
 
     Path       *RequestPath
-    Parameters []string
+    Parameters string
+}
+
+func NewSanitizedRequest(conn *GophorConn, url *GopherUrl) *Request {
+    return &Request{
+        NewRequestPath(
+            conn.RootDir(),
+            sanitizeRawPath(conn.RootDir(), url.Path),
+        ),
+        url.Parameters,
+    }
 }
 
 /* Sanitize a request path string */
-func sanitizeRelativePath(rootDir, relPath string) string {
+func sanitizeRawPath(rootDir, relPath string) string {
     /* Start with a clean :) */
     relPath = path.Clean(relPath)
 
