@@ -229,6 +229,10 @@ func setupServer() []*GophorListener {
     Config.FileSystem.Restricted = compileUserRestrictedRegex(*restrictedFiles)
     Config.FileSystem.Remaps = compileUserRemapRegex(*fileRemaps)
 
+    /* Precompile some helpful regex */
+    Config.RgxGophermap = compileGophermapCheckRegex()
+    Config.RgxCgiBin = compileCgiBinCheckRegex()
+
     /* Return the created listeners slice :) */
     return listeners
 }

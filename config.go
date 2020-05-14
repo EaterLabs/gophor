@@ -2,6 +2,7 @@ package main
 
 import (
     "time"
+    "regexp"
 )
 
 /* ServerConfig:
@@ -12,31 +13,35 @@ import (
  */
 type ServerConfig struct {
     /* Executable Settings */
-    Env                []string
-    CgiEnv             []string
-    CgiEnabled         bool
-    MaxExecRunTime     time.Duration
+    Env                 []string
+    CgiEnv              []string
+    CgiEnabled          bool
+    MaxExecRunTime      time.Duration
 
     /* Content settings */
-    CharSet            string
-    FooterText         []byte
-    PageWidth          int
+    CharSet             string
+    FooterText          []byte
+    PageWidth           int
 
     /* Logging */
-    SysLog             LoggerInterface
-    AccLog             LoggerInterface
+    SysLog              LoggerInterface
+    AccLog              LoggerInterface
 
     /* Filesystem access */
-    FileSystem         *FileSystem
+    FileSystem          *FileSystem
 
     /* Buffer sizes */
-    SocketWriteBufSize int
-    SocketReadBufSize  int
-    SocketReadMax      int
-    SkipPrefixBufSize  int
-    FileReadBufSize    int
+    SocketWriteBufSize  int
+    SocketReadBufSize   int
+    SocketReadMax       int
+    SkipPrefixBufSize   int
+    FileReadBufSize     int
 
     /* Socket deadlines */
     SocketReadDeadline  time.Duration
     SocketWriteDeadline time.Duration
+
+    /* Precompiled regular expressions for performance */
+    RgxGophermap        *regexp.Regexp
+    RgxCgiBin           *regexp.Regexp
 }

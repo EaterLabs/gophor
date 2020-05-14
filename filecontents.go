@@ -238,7 +238,7 @@ func readGophermap(path *RequestPath) ([]GophermapSection, *GophorError) {
                     }
 
                     /* Check if we've been supplied subgophermap or regular file */
-                    if subPath.HasAbsSuffix(GophermapFileStr) {
+                    if isGophermap(subPath) {
                         /* If executable, store as GophermapExecFileSection, else GophermapSubmapSection */
                         if stat.Mode().Perm() & 0100 != 0 {
                             sections = append(sections, &GophermapExecFileSection { &Request{ subPath, parameters } })

@@ -32,7 +32,7 @@ func (fs *FileSystem) Init(size int, fileSizeMax float64) {
     fs.CacheMap     = NewFixedMap(size)
     fs.CacheMutex   = sync.RWMutex{}
     fs.CacheFileMax = int64(BytesInMegaByte * fileSizeMax)
-    /* {,Reverse}Remap map is setup in `gophor.go`, no need to here */
+    /* .Remaps and .Restricted are handled within gopher.go */
 }
 
 func (fs *FileSystem) IsRestricted(path string) bool {
@@ -103,7 +103,7 @@ func (fs *FileSystem) HandleRequest(responder *Responder) *GophorError {
         /* Directory */
         case stat.Mode() & os.ModeDir != 0:
             /* Ignore anything under cgi-bin directory */
-            if responder.Request.Path.HasRelPrefix(CgiBinDirStr) {
+            if withinCgiBin(responder.Request.Path) {
                 return &GophorError{ IllegalPathErr, nil }
             }
 
@@ -215,7 +215,7 @@ func (fs *FileSystem) FetchFile(responder *Responder) *GophorError {
 
         /* Create new file contents */
         var contents FileContents
-        if responder.Request.Path.HasRelSuffix(GophermapFileStr) {
+        if isGophermap(responder.Request.Path) {
             contents = &GophermapContents{ responder.Request.Path, nil }
         } else {
             contents = &RegularFileContents{ responder.Request.Path, nil }

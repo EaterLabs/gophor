@@ -15,6 +15,16 @@ type FileRemap struct {
     Template   string
 }
 
+/* Pre-compile gophermap file string regex */
+func compileGophermapCheckRegex() *regexp.Regexp {
+    return regexp.MustCompile(`^(|.+/|.+\.)gophermap$`)
+}
+
+/* Pre-compile cgi-bin path string regex */
+func compileCgiBinCheckRegex() *regexp.Regexp {
+    return regexp.MustCompile(`^cgi-bin(|/.*)$`)
+}
+
 /* Compile a user supplied new line separated list of regex statements */
 func compileUserRestrictedRegex(restrictions string) []*regexp.Regexp {
     /* Return slice */
@@ -71,4 +81,14 @@ func compileUserRemapRegex(remaps string) []*FileRemap {
     }
 
     return fileRemaps
+}
+
+/* Check if file path is gophermap */
+func isGophermap(path *RequestPath) bool {
+    return Config.RgxGophermap.MatchString(path.Relative())
+}
+
+/* Check if file path within cgi-bin */
+func withinCgiBin(path *RequestPath) bool {
+    return Config.RgxCgiBin.MatchString(path.Relative())
 }
