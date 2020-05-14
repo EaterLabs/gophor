@@ -23,7 +23,7 @@ WARNING: the development branch is filled with lava, fear and capitalism.
 
 - CGI/1.1 support (see below for CGI environment variables set).
 
-- Standard HTTP URL encoding support.
+- URL encoding with query support.
 
 - Serve `DIR/gophermap` by default, else falls back to directory listing.
 
@@ -42,6 +42,13 @@ WARNING: the development branch is filled with lava, fear and capitalism.
   current host information.
 
 - User supplied footer text appended to gophermaps and directory listings.
+
+- File remapping support via regex, of format:
+  `/virtual/file -> /actual/file`
+  e.g. scripts within `cgi-bin` to the root directory:
+  `/(?P<script>[^/]+) -> /cgi-bin/$script`
+  Entries are parsed and compiled in order, so higher entries on the list
+  are matched against first.
 
 - Separate system and access logging with output and formatting options.
 
