@@ -27,7 +27,7 @@ WARNING: the development branch is filled with lava, fear and capitalism.
 
 - Serve `DIR/gophermap` by default, else falls back to directory listing.
 
-- Parsing of any files named `gophermap` / ending in `.gophermap` as
+- Parsing of any files named `gophermap` or ending in `.gophermap` as
   gophermaps.
 
 - Executable gophermap support.
