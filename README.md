@@ -25,10 +25,15 @@ WARNING: the development branch is filled with lava, fear and capitalism.
 
 - HTTP style URL query and encoding support.
 
+- Serve `DIR/gophermap` by default, else falls back to directory listing.
+
+- Parsing of any files named `gophermap` / ending in `.gophermap` as
+  gophermaps.
+
 - Executable gophermap support.
 
-- Insert files with automated line reflowing, and the output of any CGI
-  scripts or other executable gophermaps.
+- Insert files with automated line reflowing, output of any CGI scripts
+  or executable gophermaps WITHIN gophermaps.
 
 - Support for all commonly accepted item type characters (beyond just
   RFC1436 support).
