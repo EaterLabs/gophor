@@ -44,11 +44,13 @@ WARNING: the development branch is filled with lava, fear and capitalism.
 - User supplied footer text appended to gophermaps and directory listings.
 
 - File remapping support via regex, of format:
+
   `/virtual/file -> /actual/file`
+
   e.g. scripts within `cgi-bin` to the root directory:
   `/(?P<script>[^/]+) -> /cgi-bin/$script`
-  Entries are parsed and compiled in order, so higher entries on the list
-  are matched against first.
+
+  Entries are parsed, compiled, and so matched-against in order.
 
 - Separate system and access logging with output and formatting options.
 
