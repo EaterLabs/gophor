@@ -135,7 +135,7 @@ func (c *BufferedDeadlineConn) ReadLine() ([]byte, error) {
     /* Return slice */
     b := make([]byte, 0)
 
-    for {
+    for len(b) < Config.SocketReadMax {
         /* Read line */
         line, isPrefix, err := c.buffer.ReadLine()
         if err != nil {
