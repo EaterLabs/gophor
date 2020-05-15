@@ -336,6 +336,8 @@ Null port: `0`
 
 - Support setting character encoding
 
+- improve organization of what logs go where (e.g. to sys or acc)
+
 - Move filesystem_read functions to FileSystem struct function
 
 - FastCGI support
