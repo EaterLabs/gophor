@@ -1,46 +1,44 @@
 package main
 
 import (
+    "io"
     "net"
     "time"
+    "bufio"
     "strconv"
 )
 
 type ConnHost struct {
     /* Hold host specific details */
-    HostName string
-    HostPort string
-    FwdPort  string
+    name     string
+    hostport string
+    fwdport  string
 }
 
 func (host *ConnHost) Name() string {
-    return host.HostName
+    return host.name
 }
 
 func (host *ConnHost) Port() string {
-    return host.FwdPort
+    return host.fwdport
 }
 
 func (host *ConnHost) RealPort() string {
-    return host.HostPort
-}
-
-func (host *ConnHost) AddrStr() string {
-    return host.Name()+":"+host.Port()
+    return host.hostport
 }
 
 type ConnClient struct {
     /* Hold client specific details */
-    ClientIp   string
-    ClientPort string
+    ip   string
+    port string
 }
 
 func (client *ConnClient) Ip() string {
-    return client.ClientIp
+    return client.ip
 }
 
 func (client *ConnClient) Port() string {
-    return client.ClientPort
+    return client.port
 }
 
 func (client *ConnClient) AddrStr() string {
@@ -49,7 +47,7 @@ func (client *ConnClient) AddrStr() string {
 
 type GophorListener struct {
     /* Simple net.Listener wrapper that holds onto virtual
-     * host information + generates GophorConn instances
+     * host information + generates Worker instances on Accept()
      */
 
     Listener net.Listener
@@ -71,7 +69,7 @@ func BeginGophorListen(bindAddr, hostname, port, fwdPort, rootDir string) (*Goph
     }
 }
 
-func (l *GophorListener) Accept() (*GophorConn, error) {
+func (l *GophorListener) Accept() (*Worker, error) {
     conn, err := l.Listener.Accept()
     if err != nil {
         return nil, err
@@ -81,14 +79,15 @@ func (l *GophorListener) Accept() (*GophorConn, error) {
     addr, _ := conn.RemoteAddr().(*net.TCPAddr)
     client := &ConnClient{ addr.IP.String(), strconv.Itoa(addr.Port) }
 
-    return NewGophorConn(NewDeadlineConn(conn), l.Host, client, l.Root), nil
+    return &Worker{ NewBufferedDeadlineConn(conn), l.Host, client, l.Root }, nil
 }
 
 type DeadlineConn struct {
     /* Simple wrapper to net.Conn that sets deadlines
      * on each call to Read() / Write()
      */
-    conn net.Conn
+
+    conn  net.Conn
 }
 
 func NewDeadlineConn(conn net.Conn) *DeadlineConn {
@@ -108,40 +107,69 @@ func (c *DeadlineConn) Write(b []byte) (int, error) {
 }
 
 func (c *DeadlineConn) Close() error {
-    /* Implements closer */
+    /* Close */
     return c.conn.Close()
 }
 
-type GophorConn struct {
-    /* Wrap DeadlineConn with other connection details */
+type BufferedDeadlineConn struct {
+    /* Wrapper around DeadlineConn that provides buffered
+     * reads and writes.
+     */
 
-    Conn    *DeadlineConn
-    Host    *ConnHost
-    Client  *ConnClient
-    Root    string
+    conn   *DeadlineConn
+    buffer *bufio.ReadWriter
 }
 
-func NewGophorConn(conn *DeadlineConn, host *ConnHost, client *ConnClient, root string) *GophorConn {
-    return &GophorConn{
-        conn,
-        host,
-        client,
-        root,
+func NewBufferedDeadlineConn(conn net.Conn) *BufferedDeadlineConn {
+    deadlineConn := NewDeadlineConn(conn)
+    return &BufferedDeadlineConn{
+        deadlineConn,
+        bufio.NewReadWriter(
+            bufio.NewReaderSize(deadlineConn, Config.SocketReadBufSize),
+            bufio.NewWriterSize(deadlineConn, Config.SocketWriteBufSize),
+        ),
     }
 }
 
-func (c *GophorConn) Read(b []byte) (int, error) {
-    return c.Conn.Read(b)
+func (c *BufferedDeadlineConn) ReadLine() ([]byte, error) {
+    /* Return slice */
+    b := make([]byte, 0)
+
+    for {
+        /* Read line */
+        line, isPrefix, err := c.buffer.ReadLine()
+        if err != nil {
+            return nil, err
+        }
+
+        /* Add to return slice */
+        b = append(b, line...)
+
+        /* If !isPrefix, we can break-out */
+        if !isPrefix {
+            break
+        }
+    }
+
+    return b, nil
 }
 
-func (c *GophorConn) Write(b []byte) (int, error) {
-    return c.Conn.Write(b)
+func (c *BufferedDeadlineConn) Write(b []byte) (int, error) {
+    return c.buffer.Write(b)
 }
 
-func (c *GophorConn) Close() error {
-    return c.Conn.Close()
+func (c *BufferedDeadlineConn) WriteData(b []byte) error {
+    _, err := c.buffer.Write(b)
+    return err
 }
 
-func (c *GophorConn) RootDir() string {
-    return c.Root
+func (c *BufferedDeadlineConn) WriteRaw(r io.Reader) error {
+    _, err := c.buffer.ReadFrom(r)
+    return err
+}
+
+func (c *BufferedDeadlineConn) Close() error {
+    /* First flush buffer, then close */
+    c.buffer.Flush()
+    return c.conn.Close()
 }

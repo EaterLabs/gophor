@@ -2,30 +2,27 @@ package main
 
 import (
     "io"
-    "bufio"
     "bytes"
 )
 
 type HttpStripWriter struct {
-    /* Wrapper to bufio.Writer that reads a predetermined amount into a buffer
+    /* Wrapper to io.Writer that reads a predetermined amount into a buffer
      * then parses the buffer for valid HTTP headers and status code, deciding
      * whether to strip these headers or returning with an HTTP status code.
      */
+    Writer     io.Writer
+    SkipBuffer []byte
+    SkipIndex  int
+    Err        *GophorError
 
     /* We set underlying write function with a variable, so that each call
      * to .Write() doesn't have to perform a check every time whether we need
      * to keep checking for headers to skip.
      */
     WriteFunc  func([]byte) (int, error)
-    Writer     *bufio.Writer
-
-    SkipBuffer []byte
-    SkipIndex  int
-
-    Err        *GophorError
 }
 
-func NewHttpStripWriter(writer *bufio.Writer) *HttpStripWriter {
+func NewHttpStripWriter(writer io.Writer) *HttpStripWriter {
     w := &HttpStripWriter{}
     w.Writer = writer
     w.WriteFunc = w.WriteCheckForHeaders

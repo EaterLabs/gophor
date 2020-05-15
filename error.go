@@ -18,9 +18,8 @@ const (
     DirListErr            ErrorCode = iota
 
     /* Sockets */
-    BufferedWriteErr      ErrorCode = iota
-    BufferedWriteReadErr  ErrorCode = iota
-    BufferedWriteFlushErr ErrorCode = iota
+    SocketWriteErr        ErrorCode = iota
+    SocketWriteRawErr     ErrorCode = iota
     
     /* Parsing */
     InvalidRequestErr     ErrorCode = iota
@@ -85,12 +84,10 @@ func (e *GophorError) Error() string {
         case DirListErr:
             str = "directory read fail"
 
-        case BufferedWriteErr:
-            str = "buffered write error"
-        case BufferedWriteReadErr:
-            str = "buffered write readFrom error"
-        case BufferedWriteFlushErr:
-            str = "buffered write flush error"
+        case SocketWriteErr:
+            str = "socket write error"
+        case SocketWriteRawErr:
+            str = "socket write readFrom error"
 
         case InvalidRequestErr:
             str = "invalid request data"
@@ -160,11 +157,9 @@ func gophorErrorToResponseCode(code ErrorCode) ErrorResponseCode {
             return ErrorResponse404
 
         /* These are errors _while_ sending, no point trying to send error  */
-        case BufferedWriteErr:
+        case SocketWriteErr:
             return NoResponse
-        case BufferedWriteReadErr:
-            return NoResponse
-        case BufferedWriteFlushErr:
+        case SocketWriteRawErr:
             return NoResponse
 
         case InvalidRequestErr:

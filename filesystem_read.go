@@ -115,13 +115,13 @@ func unixLineEndSplitter(data []byte, atEOF bool) (advance int, token []byte, er
 /* List the files in directory, hiding those requested, including title and footer */
 func listDirAsGophermap(responder *Responder, hidden map[string]bool) *GophorError {
     /* Write title */
-    gophorErr := responder.Write(append(buildLine(TypeInfo, "[ "+responder.Host.Name()+responder.Request.Path.Selector()+" ]", "TITLE", NullHost, NullPort), buildInfoLine("")...))
+    gophorErr := responder.WriteData(append(buildLine(TypeInfo, "[ "+responder.Host.Name()+responder.Request.Path.Selector()+" ]", "TITLE", NullHost, NullPort), buildInfoLine("")...))
     if gophorErr != nil {
         return gophorErr
     }
 
     /* Writer a 'back' entry. GoLang Readdir() seems to miss this */
-    gophorErr = responder.Write(buildLine(TypeDirectory, "..", responder.Request.Path.JoinSelector(".."), responder.Host.Name(), responder.Host.Port()))
+    gophorErr = responder.WriteData(buildLine(TypeDirectory, "..", responder.Request.Path.JoinSelector(".."), responder.Host.Name(), responder.Host.Port()))
     if gophorErr != nil {
         return gophorErr
     }
@@ -133,7 +133,7 @@ func listDirAsGophermap(responder *Responder, hidden map[string]bool) *GophorErr
     }
 
     /* Finally write footer */
-    return responder.WriteFlush(Config.FooterText)
+    return responder.WriteData(Config.FooterText)
 }
 
 /* List the files in a directory, hiding those requested */
@@ -186,7 +186,7 @@ func listDir(responder *Responder, hidden map[string]bool) *GophorError {
     }
 
     /* Finally write dirContents and return result */
-    return responder.Write(dirContents)
+    return responder.WriteData(dirContents)
 }
 
 /* Helper function to simple checking in map */

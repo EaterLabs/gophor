@@ -117,7 +117,7 @@ func (fs *FileSystem) HandleRequest(responder *Responder) *GophorError {
                 responder.Request = gophermapRequest
 
                 if stat.Mode().Perm() & 0100 != 0 {
-                    return responder.SafeFlush(executeFile(responder))
+                    return executeFile(responder)
                 } else {
                     return fs.FetchFile(responder)
                 }
@@ -130,7 +130,7 @@ func (fs *FileSystem) HandleRequest(responder *Responder) *GophorError {
         case stat.Mode() & os.ModeType == 0:
             /* If cgi-bin, try return executed contents. Else, fetch regular file */
             if responder.Request.Path.HasRelPrefix(CgiBinDirStr) {
-                return responder.SafeFlush(executeCgi(responder))
+                return executeCgi(responder)
             } else {
                 return fs.FetchFile(responder)
             }

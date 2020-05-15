@@ -11,7 +11,7 @@ import (
 )
 
 const (
-    GophorVersion = "1.0-beta-PR1"
+    GophorVersion = "1.0-beta-PR2"
 )
 
 var (
@@ -32,17 +32,12 @@ func main() {
             Config.SysLog.Info("", "Listening on: gopher://%s:%s\n", l.Host.Name(), l.Host.RealPort())
 
             for {
-                connWrapper, err := l.Accept()
+                worker, err := l.Accept()
                 if err != nil {
                     Config.SysLog.Error("", "Error accepting connection: %s\n", err.Error())
                     continue
                 }
-
-                /* Run this in it's own goroutine so we can go straight back to accepting */
-                go func() {
-                    worker := &Worker{ connWrapper }
-                    worker.Serve()
-                }()
+                go worker.Serve()
             }
         }()
     }

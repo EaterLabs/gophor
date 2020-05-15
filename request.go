@@ -101,11 +101,11 @@ type Request struct {
     Parameters string
 }
 
-func NewSanitizedRequest(conn *GophorConn, url *GopherUrl) *Request {
+func NewSanitizedRequest(rootDir string, url *GopherUrl) *Request {
     return &Request{
         NewRequestPath(
-            conn.RootDir(),
-            sanitizeRawPath(conn.RootDir(), url.Path),
+            rootDir,
+            sanitizeRawPath(rootDir, url.Path),
         ),
         url.Parameters,
     }

@@ -2,79 +2,53 @@ package main
 
 import (
     "io"
-    "bufio"
 )
 
 type Responder struct {
-    Host    *ConnHost
-    Client  *ConnClient
-    Writer  *bufio.Writer
-    Request *Request
+    Conn        *BufferedDeadlineConn
+    Host        *ConnHost
+    Client      *ConnClient
+    Request     *Request
 }
 
-func NewResponder(conn *GophorConn, request *Request) *Responder {
-    bufWriter := bufio.NewWriterSize(conn.Conn, Config.SocketWriteBufSize)
-    return &Responder{ conn.Host, conn.Client, bufWriter, request }
+func NewResponder(conn *BufferedDeadlineConn, host *ConnHost, client *ConnClient, request *Request) *Responder {
+    return &Responder{ conn, host, client, request }
 }
 
 func (r *Responder) AccessLogInfo(format string, args ...interface{}) {
-    Config.AccLog.Info("("+r.Client.AddrStr()+") ", format, args...)
+    Config.AccLog.Info("("+r.Client.Ip()+") ", format, args...)
 }
 
 func (r *Responder) AccessLogError(format string, args ...interface{}) {
-    Config.AccLog.Error("("+r.Client.AddrStr()+") ", format, args...)
+    Config.AccLog.Error("("+r.Client.Ip()+") ", format, args...)
 }
 
-func (r *Responder) Write(data []byte) *GophorError {
-    /* Try write all supplied data */
-    _, err := r.Writer.Write(data)
+func (r *Responder) Write(b []byte) (int, error) {
+    return r.Conn.Write(b)
+}
+
+func (r *Responder) WriteData(data []byte) *GophorError {
+    err := r.Conn.WriteData(data)
     if err != nil {
-        return &GophorError{ BufferedWriteErr, err }
+        return &GophorError{ SocketWriteErr, err }
     }
     return nil
-}
-
-func (r *Responder) WriteFlush(data []byte) *GophorError {
-    /* Try write all supplied data, followed by flush */
-    _, err := r.Writer.Write(data)
-    if err != nil {
-        return &GophorError{ BufferedWriteErr, err }
-    }
-    return r.Flush()
-}
-
-func (r *Responder) Flush() *GophorError {
-    err := r.Writer.Flush()
-    if err != nil {
-        return &GophorError{ BufferedWriteFlushErr, err }
-    }
-    return nil
-}
-
-func (r *Responder) SafeFlush(gophorErr *GophorError) *GophorError {
-    /* Flush only if supplied error is nil */
-    if gophorErr != nil {
-        return gophorErr
-    } else {
-        return r.Flush()
-    }
 }
 
 func (r *Responder) WriteRaw(reader io.Reader) *GophorError {
-    /* Write directly from reader to bufio writer */
-    _, err := r.Writer.ReadFrom(reader)
+    err := r.Conn.WriteRaw(reader)
     if err != nil {
-        return &GophorError{ BufferedWriteReadErr, err }
+        return &GophorError{ SocketWriteRawErr, err }
     }
-    return r.Flush()
+    return nil
 }
 
 func (r *Responder) CloneWithRequest(request *Request) *Responder {
     /* Create new copy of Responder only with request differring */
     return &Responder{
+        r.Conn,
         r.Host,
         r.Client,
-        r.Writer,
         request,
     }
 }

@@ -1,11 +1,11 @@
 package main
 
 import (
+    "io"
     "os/exec"
     "syscall"
     "strconv"
     "time"
-    "io"
 )
 
 /* Setup initial (i.e. constant) gophermap / command environment variables */
@@ -55,13 +55,13 @@ var executeCgi func(*Responder) *GophorError
 
 /* Execute CGI script and serve as-is */
 func executeCgiNoHttp(responder *Responder) *GophorError {
-    return execute(responder.Writer, generateCgiEnvironment(responder), responder.Request.Path.Absolute())
+    return execute(responder.Conn, generateCgiEnvironment(responder), responder.Request.Path.Absolute())
 }
 
 /* Execute CGI script and strip HTTP headers */
 func executeCgiStripHttp(responder *Responder) *GophorError {
     /* HTTP header stripping writer that also parses HTTP status codes */
-    httpStripWriter := NewHttpStripWriter(responder.Writer)
+    httpStripWriter := NewHttpStripWriter(responder.Conn)
 
     /* Execute the CGI script using the new httpStripWriter */
     gophorErr := execute(httpStripWriter, generateCgiEnvironment(responder), responder.Request.Path.Absolute())
@@ -77,7 +77,7 @@ func executeCgiStripHttp(responder *Responder) *GophorError {
 
 /* Execute any file (though only allowed are gophermaps) */
 func executeFile(responder *Responder) *GophorError {
-    return execute(responder.Writer, Config.Env, responder.Request.Path.Absolute())
+    return execute(responder.Conn, Config.Env, responder.Request.Path.Absolute())
 }
 
 /* Execute a supplied path with arguments and environment, to writer */

@@ -23,7 +23,7 @@ type GeneratedFileContents struct {
 }
 
 func (fc *GeneratedFileContents) Render(responder *Responder) *GophorError {
-    return responder.WriteFlush(fc.Contents)
+    return responder.WriteData(fc.Contents)
 }
 
 func (fc *GeneratedFileContents) Load() *GophorError {
@@ -45,7 +45,7 @@ type RegularFileContents struct {
 }
 
 func (fc *RegularFileContents) Render(responder *Responder) *GophorError {
-    return responder.WriteFlush(fc.Contents)
+    return responder.WriteData(fc.Contents)
 }
 
 func (fc *RegularFileContents) Load() *GophorError {
@@ -80,7 +80,7 @@ func (gc *GophermapContents) Render(responder *Responder) *GophorError {
     }
 
     /* End on footer text (including lastline) */
-    return responder.WriteFlush(Config.FooterText)
+    return responder.WriteData(Config.FooterText)
 }
 
 func (gc *GophermapContents) Load() *GophorError {
@@ -111,7 +111,7 @@ type GophermapTextSection struct {
 }
 
 func (s *GophermapTextSection) Render(responder *Responder) *GophorError {
-    return responder.Write(replaceStrings(string(s.Contents), responder.Host))
+    return responder.WriteData(replaceStrings(string(s.Contents), responder.Host))
 }
 
 type GophermapDirectorySection struct {
@@ -138,7 +138,7 @@ func (g *GophermapFileSection) Render(responder *Responder) *GophorError {
     if gophorErr != nil {
         return gophorErr
     }
-    return responder.Write(fileContents)
+    return responder.WriteData(fileContents)
 }
 
 type GophermapSubmapSection struct {
