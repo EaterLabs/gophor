@@ -29,12 +29,22 @@ build_for() {
     fi
 
     echo "Attempting to compress ${filename}..."
-    cp "$filename" "${filename}.topack"
 
+    # First try compression with --best
+    cp "$filename" "${filename}.topack"
     if (silent upx --best "${filename}.topack") && (silent upx -t "${filename}.topack"); then
+        echo "Succeeded with best compression levels!"
         mv "${filename}.topack" "$filename"
     else
-        rm "${filename}.topack"
+        # Failed! Before throwing in the towel, try regular compression levels
+        cp "$filename" "${filename}.topack"
+        if (silent upx "${filename}.topack") && (silent upx -t "${filename}.topack"); then
+            echo "Succeeded with regular compression levels!"
+            mv "${filename}.topack" "$filename"
+        else
+            echo "Failed!"
+            rm "${filename}.topack"
+        fi
     fi
 
     echo ""
