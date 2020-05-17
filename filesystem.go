@@ -86,8 +86,12 @@ func (fs *FileSystem) HandleRequest(responder *Responder) *GophorError {
             /* Remapped path exists, set this! */
             responder.Request.Path = remap
         } else {
-            /* Last ditch effort to grab generated file */
-            return fs.FetchGeneratedFile(responder, err)
+            /* Try get the non-remapped path */
+            stat, err = os.Stat(responder.Request.Path.Absolute())
+            if err != nil {
+                /* Last ditch effort to grab generated file */
+                return fs.FetchGeneratedFile(responder, err)
+            }
         }
     } else {
         /* Just get regular supplied request path */
