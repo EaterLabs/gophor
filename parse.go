@@ -17,12 +17,6 @@ func parseCgiAbsDir(root, cgiDir string) string {
 
 /* Parse a request string into a path and parameters string */
 func parseGopherUrl(request string) (*GopherUrl, *GophorError) {
-    if strings.Contains(request, "#") ||         // we don't support fragments
-       strings.HasPrefix(request, "GET ") ||     // we don't support HTTP requests
-       strings.HasPrefix(request, "POST ") || {  // we don't support HTTP requests
-        return nil, &GophorError{ InvalidRequestErr, nil }
-    }
-
     /* Check if string contains any ASCII control byte */
     for i := 0; i < len(request); i += 1 {
         if request[i] < ' ' || request[i] == 0x7f {
