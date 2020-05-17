@@ -79,7 +79,7 @@ func parseLineType(line string) ItemType {
     return ItemType(line[0])
 }
 
-/* Parses a line in a gophermap into a new request object */
+/* Parses a line in a gophermap into a new request object. TODO: improve this */
 func parseLineRequestString(requestPath *RequestPath, lineStr string) (*Request, *GophorError) {
     if strings.HasPrefix(lineStr, "/") {
         /* Assume is absolute (well, seeing server root as '/') */

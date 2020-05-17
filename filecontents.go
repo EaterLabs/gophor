@@ -174,16 +174,6 @@ func (g *GophermapExecCgiSection) Render(responder *Responder) *GophorError {
     return executeCgi(responder.CloneWithRequest(g.Request))
 }
 
-type GophermapExecFileSection struct {
-    /* Holds onto a request with executable file path and supplied arguments */
-    Request *Request
-}
-
-func (g *GophermapExecFileSection) Render(responder *Responder) *GophorError {
-    /* Create new responder from supplied and using stored path */
-    return executeFile(responder.CloneWithRequest(g.Request))
-}
-
 /* Read and parse a gophermap into separately cacheable and renderable GophermapSection */
 func readGophermap(request *Request) ([]GophermapSection, *GophorError) {
     /* Create return slice */
@@ -253,12 +243,8 @@ func readGophermap(request *Request) ([]GophermapSection, *GophorError) {
 
                     /* Check if we've been supplied subgophermap or regular file */
                     if isGophermap(subRequest.Path.Relative()) {
-                        /* If executable, store as GophermapExecFileSection, else GophermapSubmapSection */
-                        if stat.Mode().Perm() & 0100 != 0 {
-                            sections = append(sections, &GophermapExecFileSection { subRequest })
-                        } else {
-                            sections = append(sections, &GophermapSubmapSection{ subRequest })
-                        }
+                        /* Append as gophermap subsection */
+                        sections = append(sections, &GophermapSubmapSection{ subRequest })
                     } else {
                         /* If stored in cgi-bin store as GophermapExecCgiSection, else GophermapFileSection */
                         if withinCgiBin(subRequest.Path.Relative()) {

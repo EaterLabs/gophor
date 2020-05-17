@@ -8,13 +8,6 @@ import (
     "time"
 )
 
-/* Setup initial (i.e. constant) gophermap / command environment variables */
-func setupExecEnviron(path string) []string {
-    return []string {
-        envKeyValue("PATH", path),
-    }
-}
-
 /* Setup initial (i.e. constant) CGI environment variables */
 func setupInitialCgiEnviron(path, charset string) []string {
     return []string{
@@ -73,11 +66,6 @@ func executeCgiStripHttp(responder *Responder) *GophorError {
     } else {
         return gophorErr
     }
-}
-
-/* Execute any file (though only allowed are gophermaps) */
-func executeFile(responder *Responder) *GophorError {
-    return execute(responder.Conn, Config.Env, responder.Request.Path.Absolute())
 }
 
 /* Execute a supplied path with arguments and environment, to writer */

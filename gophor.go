@@ -173,7 +173,6 @@ func setupServer() []*GophorListener {
 
         /* Set safe executable path and setup environments */
         Config.SysLog.Info("", "Setting safe executable path: %s\n", *safeExecPath)
-        Config.Env = setupExecEnviron(*safeExecPath)
         Config.CgiEnv = setupInitialCgiEnviron(*safeExecPath, charSet)
 
         /* Set executable watchdog */

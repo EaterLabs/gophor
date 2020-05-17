@@ -115,12 +115,7 @@ func (fs *FileSystem) HandleRequest(responder *Responder) *GophorError {
                 /* Gophermap exists! If executable try return executed contents, else serve as regular gophermap. */
                 gophermapRequest := &Request{ gophermapPath, responder.Request.Parameters }
                 responder.Request = gophermapRequest
-
-                if stat.Mode().Perm() & 0100 != 0 {
-                    return executeFile(responder)
-                } else {
-                    return fs.FetchFile(responder)
-                }
+                return fs.FetchFile(responder)
             } else {
                 /* No gophermap, serve directory listing */
                 return listDirAsGophermap(responder, map[string]bool{ gophermapPath.Relative(): true, CgiBinDirStr: true })
