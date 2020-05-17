@@ -12,7 +12,6 @@ const (
     BytesInMegaByte = 1048576.0
 
     /* Filename constants */
-    CgiBinDirStr     = "cgi-bin"
     GophermapFileStr = "gophermap"
 )
 
@@ -103,7 +102,7 @@ func (fs *FileSystem) HandleRequest(responder *Responder) *GophorError {
         /* Directory */
         case stat.Mode() & os.ModeDir != 0:
             /* Ignore anything under cgi-bin directory */
-            if withinCgiBin(responder.Request.Path.Relative()) {
+            if withinCgiBin(responder.Request.Path.Absolute()) {
                 return &GophorError{ IllegalPathErr, nil }
             }
 
@@ -118,13 +117,13 @@ func (fs *FileSystem) HandleRequest(responder *Responder) *GophorError {
                 return fs.FetchFile(responder)
             } else {
                 /* No gophermap, serve directory listing */
-                return listDirAsGophermap(responder, map[string]bool{ gophermapPath.Relative(): true, CgiBinDirStr: true })
+                return listDirAsGophermap(responder, map[string]bool{ gophermapPath.Relative(): true })
             }
 
         /* Regular file */
         case stat.Mode() & os.ModeType == 0:
             /* If cgi-bin, try return executed contents. Else, fetch regular file */
-            if responder.Request.Path.HasRelPrefix(CgiBinDirStr) {
+            if withinCgiBin(responder.Request.Path.Absolute()) {
                 return executeCgi(responder)
             } else {
                 return fs.FetchFile(responder)

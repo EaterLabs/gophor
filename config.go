@@ -13,6 +13,7 @@ import (
  */
 type ServerConfig struct {
     /* Executable Settings */
+    CgiDir              string
     CgiEnv              []string
     CgiEnabled          bool
     MaxExecRunTime      time.Duration

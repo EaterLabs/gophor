@@ -94,6 +94,7 @@ func setupServer() []*GophorListener {
     serverGeoloc       := flag.String("geoloc", "", "Change server gelocation string in generated caps.txt.")
 
     /* Exec settings */
+    cgiDir             := flag.String("cgi-dir", "cgi-bin", "Change CGI scripts directory, relative or absolute.")
     disableCgi         := flag.Bool("disable-cgi", false, "Disable CGI and all executable support.")
     httpCompatCgi      := flag.Bool("http-compat-cgi", false, "Enable HTTP CGI script compatibility (will strip HTTP headers).")
     httpHeaderBuf      := flag.Int("http-header-buf", 4096, "Change max CGI read count to look for and strip HTTP headers before sending raw (bytes).")
@@ -159,6 +160,9 @@ func setupServer() []*GophorListener {
         /* Enable CGI */
         Config.SysLog.Info("", "CGI support enabled\n")
         Config.CgiEnabled = true
+
+        Config.CgiDir = parseCgiAbsDir(*serverRoot, *cgiDir)
+        Config.SysLog.Info("", "CGI scripts directory: %s\n", Config.CgiDir)
 
         if *httpCompatCgi {
             Config.SysLog.Info("", "Enabling HTTP CGI script compatibility\n")

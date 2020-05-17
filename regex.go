@@ -22,7 +22,7 @@ func compileGophermapCheckRegex() *regexp.Regexp {
 
 /* Pre-compile cgi-bin path string regex */
 func compileCgiBinCheckRegex() *regexp.Regexp {
-    return regexp.MustCompile(`^cgi-bin(|/.*)$`)
+    return regexp.MustCompile(`^`+Config.CgiDir+`(|/.*)$`)
 }
 
 /* Compile a user supplied new line separated list of regex statements */
@@ -76,7 +76,7 @@ func compileUserRemapRegex(remaps string) []*FileRemap {
         }
 
         /* Append file remapper */
-        fileRemaps = append(fileRemaps, &FileRemap{ regex, strings.TrimPrefix(split[1], "/") })
+        fileRemaps = append(fileRemaps, &FileRemap{ regex, split[1] })
         Config.SysLog.Info("", "Compiled remap: %s\n", expr)
     }
 
@@ -89,6 +89,6 @@ func isGophermap(path string) bool {
 }
 
 /* Check if file path within cgi-bin */
-func withinCgiBin(path string) bool {
-    return Config.RgxCgiBin.MatchString(path)
+func withinCgiBin(absPath string) bool {
+    return Config.RgxCgiBin.MatchString(absPath)
 }

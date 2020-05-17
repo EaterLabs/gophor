@@ -22,7 +22,19 @@ func NewRequestPath(rootDir, relPath string) *RequestPath {
 }
 
 func (rp *RequestPath) RemapPath(newPath string) *RequestPath {
-    requestPath := NewRequestPath(rp.RootDir(), sanitizeRawPath(rp.RootDir(), newPath))
+    var requestPath *RequestPath
+    if path.IsAbs(newPath) {
+        /* Absolute path, figure out if inside server root or rest of filesystem */
+        lenBefore := len(newPath)
+        if newPath = strings.TrimPrefix(newPath, rp.RootDir()); len(newPath) < lenBefore {
+            requestPath = NewRequestPath(rp.RootDir(), newPath)
+        } else {
+            requestPath = NewRequestPath("/", newPath)
+        }
+    } else {
+        /* Relative path, is within server root */
+        requestPath = NewRequestPath(rp.RootDir(), newPath)
+    }
     requestPath.Select = rp.Relative()
     return requestPath
 }

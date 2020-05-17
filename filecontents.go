@@ -182,7 +182,6 @@ func readGophermap(request *Request) ([]GophermapSection, *GophorError) {
     /* Create hidden files map now in case dir listing requested */
     hidden := map[string]bool{
         request.Path.Relative(): true, /* Ignore current gophermap */
-        CgiBinDirStr:            true, /* Ignore cgi-bin if found */
     }
 
     /* Keep track of whether we've already come across a title line (only 1 allowed!) */

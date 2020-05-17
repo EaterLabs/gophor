@@ -1,9 +1,19 @@
 package main
 
 import (
+    "path"
     "strings"
     "net/url"
 )
+
+/* Parse an absolute directory from supplied CGI directory and root directory */
+func parseCgiAbsDir(root, cgiDir string) string {
+    if path.IsAbs(cgiDir) {
+        return cgiDir
+    } else {
+        return path.Join(root, path.Clean(cgiDir))
+    }
+}
 
 /* Parse a request string into a path and parameters string */
 func parseGopherUrl(request string) (*GopherUrl, *GophorError) {
@@ -23,16 +33,16 @@ func parseGopherUrl(request string) (*GopherUrl, *GophorError) {
     split := strings.SplitN(request, "?", 2)
 
     /* Unescape path */
-    path, err := url.PathUnescape(split[0])
+    urlPath, err := url.PathUnescape(split[0])
     if err != nil {
         return nil, &GophorError{ InvalidRequestErr, nil }
     }
 
     /* Return GopherUrl based on this split request */
     if len(split) == 1 {
-        return &GopherUrl{ path, "" }, nil
+        return &GopherUrl{ urlPath, "" }, nil
     } else {
-        return &GopherUrl{ path, split[1] }, nil
+        return &GopherUrl{ urlPath, split[1] }, nil
     }
 }
 
