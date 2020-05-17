@@ -86,7 +86,7 @@ func setupServer() []*GophorListener {
 
     /* Regex */
     restrictedFiles    := flag.String("restrict-files", "", "New-line separated list of regex statements restricting accessible files.")
-    fileRemaps         := flag.String("file-remap", "", "New-line separated list of file remappings of format: /virtual/relative/path -> /actual/relative/path")
+    fileRemaps         := flag.String("file-remap", "", "New-line separated list of file remappings of format: /virtual/relative/path -> actual/relative/path OR /actual/absolute/path")
 
     /* User supplied caps.txt information */
     serverDescription  := flag.String("description", "Gophor, a Gopher server in Go.", "Change server description in generated caps.txt.")
