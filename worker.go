@@ -46,11 +46,11 @@ func (worker *Worker) Serve() {
         gophorErr = Config.FileSystem.HandleRequest(responder)
         if gophorErr == nil {
             /* Log success to access and return! */
-            responder.AccessLogInfo("Served: %s\n", received)
+            responder.AccessLogInfo("Served: '%s'\n", url.Path)
             return
         } else {
             /* Log failure to access */
-            responder.AccessLogError("Failed to serve: %s\n", received)
+            responder.AccessLogError("Failed to serve: '%s'\n", url.Path)
         }
     }
 
