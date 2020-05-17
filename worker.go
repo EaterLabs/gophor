@@ -26,14 +26,11 @@ func (worker *Worker) Serve() {
     /* Handle URL request if presented */
     lenBefore := len(received)
     received = strings.TrimPrefix(received, "URL:")
-    switch len(received) {
-        case lenBefore-4:
-            /* Send an HTML redirect to supplied URL */
-            Config.AccLog.Info("("+worker.Client.Ip()+") ", "Redirecting to %s\n", received)
-            worker.Conn.Write(generateHtmlRedirect(received))
-            return
-        default:
-            /* Do nothing */
+    if len(received) == lenBefore-4 {
+        /* Send an HTML redirect to supplied URL */
+        worker.Conn.Write(generateHtmlRedirect(received))
+        Config.AccLog.Info("("+worker.Client.Ip()+") ", "Redirecting to %s\n", received)
+        return
     }
 
     /* Create GopherUrl object from request string */
