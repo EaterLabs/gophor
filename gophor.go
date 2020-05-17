@@ -19,6 +19,9 @@ var (
 )
 
 func main() {
+    /* Quickly setup global logger */
+    setupGlobalLogger()
+
     /* Setup the entire server, getting slice of listeners in return */
     listeners := setupServer()
 
@@ -53,11 +56,11 @@ func setupServer() []*GophorListener {
 
     /* Base server settings */
     serverRoot         := flag.String("root", "/var/gopher", "Change server root directory.")
-    serverBindAddr     := flag.String("bind-addr", "127.0.0.1", "Change server socket bind address")
+    serverBindAddr     := flag.String("bind-addr", "", "Change server socket bind address")
     serverPort         := flag.Int("port", 70, "Change server bind port.")
 
     serverFwdPort      := flag.Int("fwd-port", 0, "Change port used in '$port' replacement strings (useful if you're port forwarding).")
-    serverHostname     := flag.String("hostname", "127.0.0.1", "Change server hostname (FQDN).")
+    serverHostname     := flag.String("hostname", "", "Change server hostname (FQDN).")
 
     /* Logging settings */
     systemLogPath      := flag.String("system-log", "", "Change server system log file (blank outputs to stderr).")
@@ -114,6 +117,16 @@ func setupServer() []*GophorListener {
     flag.Parse()
     if *version {
         printVersionExit()
+    }
+
+    /* If hostname is nil we set it to bind-addr */
+    if *serverHostname == "" {
+        /* If both are blank that ain't too helpful */
+        if *serverBindAddr == "" {
+            log.Fatalf("Cannot have both -bind-addr and -hostname as empty!\n")
+        } else {
+            *serverHostname = *serverBindAddr
+        }
     }
 
     /* Setup the server configuration instance and enter as much as we can right now */

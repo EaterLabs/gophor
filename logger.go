@@ -72,6 +72,12 @@ func (l *LoggerNoPrefix) Fatal(prefix, format string, args ...interface{}) {
     l.Logger.Fatalf(LogPrefixFatal+format, args...)
 }
 
+/* Setup global logger */
+func setupGlobalLogger() {
+    log.SetFlags(0)
+    log.SetOutput(os.Stderr)
+}
+
 /* Setup the system and access logger interfaces according to supplied output options and logger options */
 func setupLoggers(logOutput, logOpts, systemLogPath, accessLogPath string) (LoggerInterface, LoggerInterface) {
     /* Parse the logger options */
