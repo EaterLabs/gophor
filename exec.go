@@ -21,7 +21,7 @@ func setupInitialCgiEnviron(path, charset string) []string {
         /* RFC 3875 standard */
         envKeyValue("GATEWAY_INTERFACE",  "CGI/1.1"),               /* MUST be set to the dialect of CGI being used by the server */
         envKeyValue("SERVER_SOFTWARE",    "gophor/"+GophorVersion), /* MUST be set to name and version of server software serving this request */
-        envKeyValue("SERVER_PROTOCOL",    "RFC1436"),               /* MUST be set to name and version of application protocol used for this request */
+        envKeyValue("SERVER_PROTOCOL",    "gopher"),                /* MUST be set to name and version of application protocol used for this request */
         envKeyValue("CONTENT_LENGTH",     "0"),                     /* Contains size of message-body attached (always 0 so we set here) */
         envKeyValue("REQUEST_METHOD",     "GET"),                   /* MUST be set to method by which script should process request. Always GET */
 
