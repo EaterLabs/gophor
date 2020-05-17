@@ -1,8 +1,8 @@
 package main
 
 import (
+    "time"
     "regexp"
-    "log"
 )
 
 /* ServerConfig:
@@ -12,38 +12,35 @@ import (
  * and file cache)
  */
 type ServerConfig struct {
-    /* Base settings */
-    RootDir         string
+    /* Executable Settings */
+    Env                 []string
+    CgiEnv              []string
+    CgiEnabled          bool
+    MaxExecRunTime      time.Duration
 
     /* Content settings */
-    FooterText      []byte
-    PageWidth       int
-    RestrictedFiles []*regexp.Regexp
+    FooterText          []byte
+    PageWidth           int
 
     /* Logging */
-    SystemLogger    *log.Logger
-    AccessLogger    *log.Logger
+    SysLog              LoggerInterface
+    AccLog              LoggerInterface
 
     /* Filesystem access */
-    FileSystem      *FileSystem
-}
+    FileSystem          *FileSystem
 
-func (config *ServerConfig) LogSystem(fmt string, args ...interface{}) {
-    config.SystemLogger.Printf(":: I :: "+fmt, args...)
-}
+    /* Buffer sizes */
+    SocketWriteBufSize  int
+    SocketReadBufSize   int
+    SocketReadMax       int
+    SkipPrefixBufSize   int
+    FileReadBufSize     int
 
-func (config *ServerConfig) LogSystemError(fmt string, args ...interface{}) {
-    config.SystemLogger.Printf(":: E :: "+fmt, args...)
-}
+    /* Socket deadlines */
+    SocketReadDeadline  time.Duration
+    SocketWriteDeadline time.Duration
 
-func (config *ServerConfig) LogSystemFatal(fmt string, args ...interface{}) {
-    config.SystemLogger.Fatalf(":: F :: "+fmt, args...)
-}
-
-func (config *ServerConfig) LogAccess(sourceAddr, fmt string, args ...interface{}) {
-    config.AccessLogger.Printf(":: I :: ["+sourceAddr+"] "+fmt, args...)
-}
-
-func (config *ServerConfig) LogAccessError(sourceAddr, fmt string, args ...interface{}) {
-    config.AccessLogger.Printf(":: E :: ["+sourceAddr+"] "+fmt, args...)
+    /* Precompiled regular expressions */
+    RgxGophermap        *regexp.Regexp
+    RgxCgiBin           *regexp.Regexp
 }

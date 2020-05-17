@@ -38,14 +38,15 @@ func NewFixedMap(size int) *FixedMap {
 func (fm *FixedMap) Get(key string) *File {
     elem, ok := fm.Map[key]
     if ok {
+        /* And that's an LRU implementation folks! */
+        fm.List.MoveToFront(elem.Element)
         return elem.Value
     } else {
         return nil
     }
 }
 
-/* Put file in map as key, pushing out last file
- * if size limit reached */
+/* Put file in map as key, pushing out last file if size limit reached */
 func (fm *FixedMap) Put(key string, value *File) {
     element := fm.List.PushFront(key)
     fm.Map[key] = &MapElement{ element, value }
@@ -60,8 +61,6 @@ func (fm *FixedMap) Put(key string, value *File) {
         /* Finally delete the map entry and list element! */
         delete(fm.Map, key)
         fm.List.Remove(element)
-
-        Config.LogSystem("Popped key: %s\n", key)
     }
 }
 

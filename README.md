@@ -14,74 +14,141 @@ WARNING: the development branch is filled with lava, fear and capitalism.
 
 # Features
 
-- Built with concurrency and efficiency in mind.
+- Built with security, concurrency and efficiency in mind.
 
 - ZERO external dependencies.
 
-- Security focused -- chroots into server direrctory and drops
-  privileges. `maybe wait until stable release before use outside of hobby
-  setups.`
-
-- LRU file caching -- with user-controlled cache size, max cached file size
+- LRU file caching with user-controlled cache size, max cached file size
   and cache refresh frequency.
 
-- Insert files within gophermaps, including automating reflowing of lines
-  longer than (user definable) page width.
+- CGI/1.1 support (see below for CGI environment variables set).
 
-- Automatic replacement of `$hostname` or `$port` with the information of
-  the host the client is connecting to.
+- URL encoding with query support.
+
+- Serve `DIR/gophermap` by default, else falls back to directory listing.
+
+- Parsing of any files named `gophermap` or ending in `.gophermap` as
+  gophermaps.
+
+- Executable gophermap support.
+
+- Insert files with automated line reflowing, output of any CGI scripts
+  or executable gophermaps WITHIN gophermaps.
+
+- Support for all commonly accepted item type characters (beyond just
+  RFC1436 support).
+
+- Automatic replacement of `$hostname` or `$port` in gophermap lines with
+  current host information.
 
 - User supplied footer text appended to gophermaps and directory listings.
 
-- Item type characters beyond RFC 1436 standard (see below).
+- File remapping support via regex, of format:
 
-- Separate system and access logging with output to file if requested (or to
-  disable both).
+  `/virtual/file -> /actual/file`
+
+  e.g. scripts within `cgi-bin` to the root directory:
+  `/(?P<script>[^/]+) -> /cgi-bin/$script`
+
+  Entries are parsed, compiled, and so matched-against in order.
+
+- Separate system and access logging with output and formatting options.
+
+## Please note
+
+### Gophermap parsing
+
+Due to the way that gophermap parsing is handled, if a gophermap is larger than
+the max cache'd file size or file caching is disabled (same as
+same as setting max size to 0), these gophermaps WILL NOT be parsed by the server.
+The features you will miss out on for these files are features listed
+`[SERVER ONLY]` in the gophermap item types section below.
+
+### Chroots and privilege dropping
+
+Previously, chrooting to server directory and dropping privileges was supported
+by using Go C bindings. This is not officially supported due to weird behaviour
+with `.Set{U,G}id()` under Linux. As such, the feature has been dropped for
+now.
+
+There is a near 10 year ongoing tracked issue
+(https://github.com/golang/go/issues/1435), and as soon as this patch gets
+merged I'll add support: https://go-review.googlesource.com/c/go/+/210639
+
+In place of removing this, request sanitization has been majorly improved and
+checks are in place to prevent running Gophor as root.
+
+If you run into issues binding to a lower port number due to insufficient
+permissions then there are a few alternatives:
+
+- set gophor process capabilities: e.g.
+  `setcap 'cap_net_bind_service=+ep' /usr/local/bin/gophor`
+
+- use Docker (or some other solution) and configure port forwarding on the
+  host
+
+- start gopher in it's own namespace in a chroot
 
 # Usage
 
 ```
 gophor [args]
-       -root                Change server root directory.
+       -root                 Change server root directory.
+       -bind-addr            Change server bind-address (used in creating
+                             socket).
+       -port                 Change server bind port.
 
-       -port                Change server NON-TLS listening port.
+       -fwd-port             Change port used in $port replacement strings
+                             (e.g. when port forwarding).
+       -hostname             Change server hostname (FQDN).
 
-       -hostname            Change server hostname (FQDN, used to craft dir
-                            lists).
+       -system-log           Path to gophor system log file.
+       -access-log           Path to gophor access log file.
+       -log-output           Change log output type (disable|stderr|file)
+       -log-opts             Comma-separated list of lop opts (timestamp|ip)
 
-       -bind-addr           Change server bind-address (used in creating
-                            socket).
+       -file-monitor-freq    Change file-cache freshness check frequency.
+       -file-remap           New-line separated list of file remappings of format:
+                             /virtual/relative/path -> /actual/relative/path
 
-       -user                Drop to supplied user's UID and GID permissions
-                            before execution.
+       -cache-size           Change max no. files in file-cache.
+       -cache-file-max       Change maximum allowed size of a cached file.
+       -disable-cache        Disable file caching.
 
-       -system-log          Path to gophor system log file, else use stderr.
+       -page-width           Change page width used when formatting output.
+       -footer               Change gophermap footer text (Unix new-line
+                             separated lines).
+       -no-footer-separator  Disable footer text line separator.
 
-       -access-log          Path to gophor access log file, else use stderr.
+       -restrict-files       New-line separated list of regex statements
+                             (checked against absolute paths) restricting
+                             file access.
 
-       -cache-check         Change file-cache freshness check frequency.
+       -description          Change server description in generated caps.txt.
+       -admin-email          Change admin email in generated caps.txt.
+       -geoloc               Change geolocation in generated caps.txt.
 
-       -cache-size          Change max no. files in file-cache.
+       -disable-cgi          Disable CGI and all executable support.
+       -http-compat-cgi      Enable HTTP CGI script compatibility (will strip
+                             HTTP headers).
+       -http-header-buf      Change max CGI read count to look for and strip
+                             HTTP headers before sending raw (bytes).
+       -safe-path            Set safe PATH variable to be used when executing
+                             CGI scripts, gophermaps and inline shell
+                             commands.
+       -max-exec-time        Change max executable CGI, gophermap and inline
+                             shell command runtime.
 
-       -cache-file-max      Change maximum allowed size of a cached file.
+       -socket-write-buf     Change socket write buffer size (bytes).
+       -socket-read-buf      Change socket read buffer size (bytes).
+       -socket-read-max      Change socket read count max (integer multiplier
+                             to socket-read-buf-max).
+       -file-read-buf        Change file read buffer size (bytes).
 
-       -page-width          Change page width used when formatting output.
+       -socket-read-timeout  Change socket read deadline (timeout).
+       -socket-write-timeout Change socket write deadline (timeout).
 
-       -footer              Change gophermap footer text (Unix new-line
-                            separated lines).
-
-       -no-footer-separator Disable footer text line separator.
-
-       -restrict-files      New-line separated list of regex statements
-                            restricting files from showing in directory listing.
-
-       -description         Change server description in generated caps.txt.
-
-       -admin-email         Change admin email in generated caps.txt.
-
-       -geoloc              Change geolocation in generated caps.txt.
-
-       -version             Print version string.
+       -version              Print version string.
 ```
 
 # Supported gophermap item types
@@ -100,6 +167,7 @@ text lines before sending to connecting clients.
 ```
 RFC 1436 Standard:
 Type | Treat as | Meaning
+--------------------------
  0   |   TEXT   | Regular file (text)
  1   |   MENU   | Directory (menu)
  2   | EXTERNAL | CCSO flat db; other db
@@ -117,6 +185,7 @@ Type | Treat as | Meaning
 
 GopherII Standard:
 Type | Treat as | Meaning
+--------------------------
  c   |  BINARY  | Calendar file
  d   |  BINARY  | Word-processing document; PDF document
  h   |   TEXT   | HTML document
@@ -129,21 +198,27 @@ Type | Treat as | Meaning
 
 Commonly used:
 Type | Treat as | Meaning
+--------------------------
+ .   |     -    | Last line -- stop processing gophermap default
  !   |     -    | [SERVER ONLY] Menu title (set title ONCE per gophermap)
  #   |     -    | [SERVER ONLY] Comment, rest of line is ignored
  -   |     -    | [SERVER ONLY] Hide file/directory from directory listing
- .   |     -    | [SERVER ONLY] Last line -- stop processing gophermap default
  *   |     -    | [SERVER ONLY] Last line + directory listing -- stop processing
      |          |               gophermap and end on a directory listing
- =   |     -    | [SERVER ONLY] Include subgophermap / regular file here. Prints
-     |          |               and formats file / gophermap in-place
-
-Planned to be supported:
-Type | Treat as | Meaning
- $   |     -    | [SERVER ONLY] Execute shell command and print stdout here
+ =   |     -    | [SERVER ONLY] Include or execute subgophermap, cgi-bin or regular
+     |          |               file here.
 ```
 
+# Encoding
+
+By default, URLs are parsed as having standard (HTTP) URL encoding. All other
+parsed text content (gophermaps) are treated as UTF-8, as this is the default
+encoding scheme for Go strings. Support for more encoding schemes is planned
+for the future.
+
 # Compliance
+
+We aim to comply more with GopherII (see in references below).
 
 ## Item types
 
@@ -155,6 +230,56 @@ Titles are sent as `i<title text>\tTITLE\tnull.host\t0`.
 
 Web address links are sent as `h<text here>\tURL:<address>\thostname\tport`.
 An HTML redirect is sent in response to any requests beginning with `URL:`.
+
+## CGI/1.1
+
+The list of environment variables that gophor sets are as follows.
+
+RFC 3875 standard:
+
+```
+# Set
+GATEWAY INTERFACE
+SERVER_SOFTWARE
+SERVER_PROTOCOL
+CONTENT_LENGTH
+REQUEST_METHOD
+SERVER_NAME
+SERVER_PORT
+REMOTE_ADDR
+QUERY_STRING
+SCRIPT_NAME
+SCRIPT_FILENAME
+
+# NOT set
+    Env Var     |                  Reasoning
+----------------------------------------------
+PATH_INFO       | This variable can fuck off, having to find the shortest
+                | valid part of path heirarchy in a URI every single
+                | CGI request so you can split and set this variable is SO
+                | inefficient. However, if someone more knowledgeable has
+                | other opinions or would like to point out where I'm wrong I
+                | will happily change my tune on this.
+PATH_TRANSLATED | See above.
+AUTH_TYPE       | Until we implement authentication of some kind, ignoring.
+CONTENT_TYPE    | Very HTTP-centric relying on 'content-type' header.
+REMOTE_IDENT    | Remote client identity information.
+REMOTE_HOST     | Basically if the client has a resolving name (not just
+                | IP), not really necessary.
+REMOTE_USER     | Remote user id, not used as again no user auth yet.
+```
+
+Non-standard:
+
+```
+# Set
+SELECTOR
+DOCUMENT_ROOT
+REQUEST_URI
+PATH
+COLUMNS
+GOPHER_CHARSET
+```
 
 ## Policy files
 
@@ -195,9 +320,9 @@ Possible Gophor errors:
 ## Terminating full stop
 
 Gophor will send a terminating full-stop for menus, but not for served
-files.
+or executed files.
 
-## Placeholder text
+## Placeholder (null) text
 
 All of the following are used as placeholder text in responses...
 
@@ -209,59 +334,29 @@ Null port: `0`
 
 # Todos
 
-Shortterm:
+- Support setting character encoding
 
-- Set default charset -- need to think about implementation here...
+- improve organization of what logs go where (e.g. to sys or acc)
 
-- Fix file cache only updating if main gophermap changes (but not sub files)
-  -- need to either rethink how we keep track of files, or rethink how
-  gophermaps are stored in memory.
+- Move filesystem_read functions to FileSystem struct function
 
-Longterm:
+- FastCGI support
 
-- Finish inline shell scripting support -- current thinking is to either
-  perform a C fork very early on, or create a separate modules binary, and
-  either way the 2 processes interact via some IPC method. Could allow for
-  other modules too.
+- Personal user gopherspaces
 
-- Rotating logs -- have a check on start for a file-size, rotate out if the
-  file is too large. Possibly checks during run-time too?
+- Rotating logs
 
-- Add last-mod-time to directory listings -- have global time parser
-  object, maybe separate out separate global instances of objects (e.g.
-  worker related, cache related, config related?)
+- TLS support
 
-- TLS support -- ~~requires a rethink of how we're passing port functions
-  generating gopher directory entries, also there is no definitive standard
-  for this yet~~ implemented these changes! figuring out gopher + TLS itself
-  though? no luck yet.
-
-- Connection throttling + timeouts -- thread to keep track of list of
-  recently connected IPs. Keep incremementing connection count and only
-  remove from list when `lastIncremented` time is greater than timeout
-
-- More closely follow GoLang built-in net/http code style for worker -- just
-  a neatness thing, maybe bring some performance improvements too and a
-  generally different way of approaching some of the solutions to problems we
-  have
-
-# Please note
-
-During the initial writing phase the quality of git commit messages may be
-low and many changes are likely to be bundled together at a time, just
-because the pace of development right now is rather break-neck.
-
-As soon as we reach a stable point in development, or if other people start
-contributing issues or PRs, whichever comes first, this will be changed
-right away.
+- Connection throttling + timeouts
 
 # Resources used
 
 Gopher-II (The Next Generation Gopher WWIS):
 https://tools.ietf.org/html/draft-matavka-gopher-ii-00
 
-Gophernicus supported item types:
-https://github.com/gophernicus/gophernicus/blob/master/README.gophermap
+Gophernicus source (a great gopher daemon in C):
+https://github.com/gophernicus/gophernicus
 
 All of the below can be viewed from your standard web browser using
 floodgap's Gopher proxy:

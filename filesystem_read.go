@@ -2,11 +2,14 @@ package main
 
 import (
     "os"
-    "path"
     "bytes"
     "io"
     "sort"
     "bufio"
+)
+
+const (
+    FileReadBufSize = 1024
 )
 
 /* Perform simple buffered read on a file at path */
@@ -77,6 +80,7 @@ func bufferedScan(path string, scanIterator func(*bufio.Scanner) bool) *GophorEr
     return nil
 }
 
+/* Split on DOS line end */
 func dosLineEndSplitter(data []byte, atEOF bool) (advance int, token []byte, err error) {
     if atEOF && len(data) == 0  {
         /* At EOF, no more data */
@@ -92,6 +96,7 @@ func dosLineEndSplitter(data []byte, atEOF bool) (advance int, token []byte, err
     return 0, nil, nil
 }
 
+/* Split on unix line end */
 func unixLineEndSplitter(data []byte, atEOF bool) (advance int, token []byte, err error) {
     if atEOF && len(data) == 0  {
         /* At EOF, no more data */
@@ -107,100 +112,87 @@ func unixLineEndSplitter(data []byte, atEOF bool) (advance int, token []byte, er
     return 0, nil, nil
 }
 
-/* listDir():
- * Here we use an empty function pointer, and set the correct
- * function to be used during the restricted files regex parsing.
- * This negates need to check if RestrictedFilesRegex is nil every
- * single call.
- */
-var listDir func(request *FileSystemRequest, hidden map[string]bool) ([]byte, *GophorError)
+/* List the files in directory, hiding those requested, including title and footer */
+func listDirAsGophermap(responder *Responder, hidden map[string]bool) *GophorError {
+    /* Write title */
+    gophorErr := responder.WriteData(append(buildLine(TypeInfo, "[ "+responder.Host.Name()+responder.Request.Path.Selector()+" ]", "TITLE", NullHost, NullPort), buildInfoLine("")...))
+    if gophorErr != nil {
+        return gophorErr
+    }
 
-func _listDir(request *FileSystemRequest, hidden map[string]bool) ([]byte, *GophorError) {
-    return _listDirBase(request, func(dirContents *[]byte, file os.FileInfo) {
-        /* If requested hidden */
-        if _, ok := hidden[file.Name()]; ok {
-            return
-        }
+    /* Writer a 'back' entry. GoLang Readdir() seems to miss this */
+    gophorErr = responder.WriteData(buildLine(TypeDirectory, "..", responder.Request.Path.JoinSelector(".."), responder.Host.Name(), responder.Host.Port()))
+    if gophorErr != nil {
+        return gophorErr
+    }
 
-        /* Handle file, directory or ignore others */
-        switch {
-            case file.Mode() & os.ModeDir != 0:
-                /* Directory -- create directory listing */
-                itemPath := path.Join(request.Path, file.Name())
-                *dirContents = append(*dirContents, buildLine(TypeDirectory, file.Name(), itemPath, request.Host.Name, request.Host.Port)...)
+    /* Write the actual directory entry */
+    gophorErr = listDir(responder, hidden)
+    if gophorErr != nil {
+        return gophorErr
+    }
 
-            case file.Mode() & os.ModeType == 0:
-                /* Regular file -- find item type and creating listing */
-                itemPath := path.Join(request.Path, file.Name())
-                itemType := getItemType(itemPath)
-                *dirContents = append(*dirContents, buildLine(itemType, file.Name(), itemPath, request.Host.Name, request.Host.Port)...)
-
-            default:
-                /* Ignore */
-        }
-    })
+    /* Finally write footer */
+    return responder.WriteData(Config.FooterText)
 }
 
-func _listDirRegexMatch(request *FileSystemRequest, hidden map[string]bool) ([]byte, *GophorError) {
-    return _listDirBase(request, func(dirContents *[]byte, file os.FileInfo) {
-        /* If regex match in restricted files || requested hidden */
-        if isRestrictedFile(file.Name()) {
-            return
-        } else if _, ok := hidden[file.Name()]; ok {
-            return
-        }
-
-        /* Handle file, directory or ignore others */
-        switch {
-            case file.Mode() & os.ModeDir != 0:
-                /* Directory -- create directory listing */
-                itemPath := path.Join(request.Path, file.Name())
-                *dirContents = append(*dirContents, buildLine(TypeDirectory, file.Name(), itemPath, request.Host.Name, request.Host.Port)...)
-
-            case file.Mode() & os.ModeType == 0:
-                /* Regular file -- find item type and creating listing */
-                itemPath := path.Join(request.Path, file.Name())
-                itemType := getItemType(itemPath)
-                *dirContents = append(*dirContents, buildLine(itemType, file.Name(), itemPath, request.Host.Name, request.Host.Port)...)
-
-            default:
-                /* Ignore */
-        }
-    })
-}
-
-func _listDirBase(request *FileSystemRequest, iterFunc func(dirContents *[]byte, file os.FileInfo)) ([]byte, *GophorError) {
+/* List the files in a directory, hiding those requested */
+func listDir(responder *Responder, hidden map[string]bool) *GophorError {
     /* Open directory file descriptor */
-    fd, err := os.Open(request.Path)
+    fd, err := os.Open(responder.Request.Path.Absolute())
     if err != nil {
-        Config.LogSystemError("failed to open %s: %s\n", request.Path, err.Error())
-        return nil, &GophorError{ FileOpenErr, err }
+        Config.SysLog.Error("", "failed to open %s: %s\n", responder.Request.Path.Absolute(), err.Error())
+        return &GophorError{ FileOpenErr, err }
     }
 
     /* Read files in directory */
     files, err := fd.Readdir(-1)
     if err != nil {
-        Config.LogSystemError("failed to enumerate dir %s: %s\n", request.Path, err.Error())
-        return nil, &GophorError{ DirListErr, err }
+        Config.SysLog.Error("", "failed to enumerate dir %s: %s\n", responder.Request.Path.Absolute(), err.Error())
+        return &GophorError{ DirListErr, err }
     }
-
+    
     /* Sort the files by name */
     sort.Sort(byName(files))
 
     /* Create directory content slice, ready */
     dirContents := make([]byte, 0)
 
-    /* First add a title + a space */
-    dirContents = append(dirContents, buildLine(TypeInfo, "[ "+request.Host.Name+request.Path+" ]", "TITLE", NullHost, NullPort)...)
-    dirContents = append(dirContents, buildInfoLine("")...)
-
-    /* Add a 'back' entry. GoLang Readdir() seems to miss this */
-    dirContents = append(dirContents, buildLine(TypeDirectory, "..", path.Join(fd.Name(), ".."), request.Host.Name, request.Host.Port)...)
-
     /* Walk through files :D */
-    for _, file := range files { iterFunc(&dirContents, file) }
+    var reqPath *RequestPath
+    for _, file := range files {
+        reqPath = NewRequestPath(responder.Request.Path.RootDir(), responder.Request.Path.JoinRel(file.Name()))
 
-    return dirContents, nil
+        /* If hidden file, or restricted file, continue! */
+        if isHiddenFile(hidden, reqPath.Relative()) /*|| isRestrictedFile(reqPath.Relative())*/ {
+            continue
+        }
+
+        /* Handle file, directory or ignore others */
+        switch {
+            case file.Mode() & os.ModeDir != 0:
+                /* Directory -- create directory listing */
+                dirContents = append(dirContents, buildLine(TypeDirectory, file.Name(), reqPath.Selector(), responder.Host.Name(), responder.Host.Port())...)
+
+            case file.Mode() & os.ModeType == 0:
+                /* Regular file -- find item type and creating listing */
+                itemPath := reqPath.Selector()
+                itemType := getItemType(itemPath)
+                dirContents = append(dirContents, buildLine(itemType, file.Name(), reqPath.Selector(), responder.Host.Name(), responder.Host.Port())...)
+
+            default:
+                /* Ignore */
+        }
+    }
+
+    /* Finally write dirContents and return result */
+    return responder.WriteData(dirContents)
+}
+
+/* Helper function to simple checking in map */
+func isHiddenFile(hiddenMap map[string]bool, fileName string) bool {
+    _, ok := hiddenMap[fileName]
+    return ok
 }
 
 /* Took a leaf out of go-gopher's book here. */
