@@ -48,14 +48,14 @@ func (fs *FileSystem) IsRestricted(path string) bool {
 func (fs *FileSystem) RemapRequestPath(requestPath *RequestPath) (*RequestPath, string, bool) {
     for _, remap := range fs.Remaps {
         /* No match :( keep lookin */
-        if !remap.Regex.MatchString(requestPath.Relative()) {
+        if !remap.Regex.MatchString(requestPath.Selector()) {
             continue
         }
 
         /* Create new path from template and submatches */
         newPath := make([]byte, 0)
-        for _, submatches := range remap.Regex.FindAllStringSubmatchIndex(requestPath.Relative(), -1) {
-            newPath = remap.Regex.ExpandString(newPath, remap.Template, requestPath.Relative(), submatches)
+        for _, submatches := range remap.Regex.FindAllStringSubmatchIndex(requestPath.Selector(), -1) {
+            newPath = remap.Regex.ExpandString(newPath, remap.Template, requestPath.Selector(), submatches)
         }
 
         /* Ignore empty replacement path */
