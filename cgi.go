@@ -38,7 +38,7 @@ func generateCgiEnvironment(responder *Responder) []string {
     env = append(env, envKeyValue("SCRIPT_FILENAME", responder.Request.Path.Absolute()))     /* Basically SCRIPT_NAME absolute path */
     env = append(env, envKeyValue("SELECTOR",        responder.Request.Path.Selector()))
     env = append(env, envKeyValue("DOCUMENT_ROOT",   responder.Request.Path.RootDir()))
-    env = append(env, envKeyValue("REQUEST_URI",     "/"+responder.Request.Path.Relative()+responder.Request.Parameters))
+    env = append(env, envKeyValue("REQUEST_URI",     responder.Request.Path.Request()))
 
     return env
 }

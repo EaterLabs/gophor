@@ -15,10 +15,11 @@ type RequestPath struct {
     Rel    string
     Abs    string
     Select string
+    Req    string
 }
 
 func NewRequestPath(rootDir, relPath string) *RequestPath {
-    return &RequestPath{ rootDir, relPath, path.Join(rootDir, strings.TrimSuffix(relPath, "/")), relPath }
+    return &RequestPath{ rootDir, relPath, path.Join(rootDir, strings.TrimSuffix(relPath, "/")), relPath, relPath }
 }
 
 func (rp *RequestPath) RemapPath(newPath string) *RequestPath {
@@ -36,6 +37,7 @@ func (rp *RequestPath) RemapPath(newPath string) *RequestPath {
         requestPath = NewRequestPath(rp.RootDir(), newPath)
     }
     requestPath.Select = rp.Relative()
+    requestPath.Req = rp.Req
     return requestPath
 }
 
@@ -52,11 +54,11 @@ func (rp *RequestPath) Absolute() string {
 }
 
 func (rp *RequestPath) Selector() string {
-    if rp.Select == "." {
-        return "/"
-    } else {
-        return "/"+rp.Select
-    }
+    return relativeToUrlPath(rp.Select)
+}
+
+func (rp *RequestPath) Request() string {
+    return relativeToUrlPath(rp.Req)
 }
 
 func (rp *RequestPath) JoinRel(extPath string) string {
@@ -139,4 +141,12 @@ func sanitizeRawPath(rootDir, relPath string) string {
     }
 
     return relPath
+}
+
+func relativeToUrlPath(relPath string) string {
+    if relPath == "." {
+        return "/"
+    } else {
+        return "/"+relPath
+    }
 }
