@@ -1,10 +1,12 @@
 package main
 
 import (
+    "fmt"
     "os"
+    "regexp"
+    "strings"
     "sync"
     "time"
-    "regexp"
 )
 
 const (
@@ -43,7 +45,7 @@ func (fs *FileSystem) IsRestricted(path string) bool {
     return false
 }
 
-func (fs *FileSystem) RemapRequestPath(requestPath *RequestPath) (*RequestPath, bool) {
+func (fs *FileSystem) RemapRequestPath(requestPath *RequestPath) (*RequestPath, string, bool) {
     for _, remap := range fs.Remaps {
         /* No match :( keep lookin */
         if !remap.Regex.MatchString(requestPath.Relative()) {
@@ -61,11 +63,19 @@ func (fs *FileSystem) RemapRequestPath(requestPath *RequestPath) (*RequestPath, 
             continue
         }
 
-        /* Set this new path to the _actual_ path */
-        return requestPath.RemapPath(string(newPath)), true
+        /* Cut new parameters from remapped path */
+        pathParts := strings.SplitN(string(newPath), "?", 2)
+        newRequestPath := requestPath.RemapPath(pathParts[0])
+        extraParameters := ""
+
+        if len(pathParts) == 2 {
+            extraParameters = pathParts[1]
+        }
+
+        return newRequestPath, extraParameters, true
     }
 
-    return nil, false
+    return nil, "", false
 }
 
 func (fs *FileSystem) HandleRequest(responder *Responder) *GophorError {
@@ -75,16 +85,31 @@ func (fs *FileSystem) HandleRequest(responder *Responder) *GophorError {
     }
 
     /* Try remap according to supplied regex */
-    remap, doneRemap := fs.RemapRequestPath(responder.Request.Path)
+    remap, newParameters, doneRemap := fs.RemapRequestPath(responder.Request.Path)
 
     var err error
     var stat os.FileInfo
     if doneRemap {
+
         /* Try get the remapped path */
         stat, err = os.Stat(remap.Absolute())
         if err == nil {
+            newParametersLogs := ""
+            if newParameters != "" {
+                newParametersLogs = fmt.Sprintf(" (new parameters: %s)", newParameters)
+            }
+            Config.SysLog.Info("", "Remapped %s to %s%s", responder.Request.Path.Relative(), remap.Relative(), newParametersLogs)
             /* Remapped path exists, set this! */
             responder.Request.Path = remap
+
+            /* Check if remap added new parameters and add them to the request in that case */
+            if newParameters != "" {
+                if responder.Request.Parameters != "" {
+                    responder.Request.Parameters += "&" + newParameters
+                } else {
+                    responder.Request.Parameters = newParameters
+                }
+            }
         } else {
             /* Try get the non-remapped path */
             stat, err = os.Stat(responder.Request.Path.Absolute())
